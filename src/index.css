@@ -2,41 +2,93 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* TeamSpark Design System - Modern workflow management with gamification elements */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Base Colors - Professional and Clean */
+    --background: 220 15% 98%;
+    --foreground: 225 50% 8%;
 
+    /* Card System - Elevated with subtle depth */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 225 50% 8%;
+    --card-hover: 215 25% 97%;
 
+    /* UI Elements */
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 225 50% 8%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Brand Colors - Deep professional blue with energy */
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 217 91% 55%;
+    --primary-muted: 217 91% 95%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Secondary System - Sophisticated grays */
+    --secondary: 220 13% 96%;
+    --secondary-foreground: 225 25% 20%;
+    --secondary-hover: 220 13% 92%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Muted Elements */
+    --muted: 220 13% 96%;
+    --muted-foreground: 225 15% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Accent - Energetic for gamification */
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+    --accent-hover: 142 76% 32%;
+    --accent-muted: 142 76% 95%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    /* Status Colors */
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    /* Interactive Elements */
+    --border: 220 13% 91%;
+    --input: 220 13% 96%;
+    --ring: 217 91% 60%;
+    --ring-offset: 0 0% 100%;
 
-    --radius: 0.5rem;
+    /* Gamification Colors */
+    --points: 45 93% 58%;
+    --points-foreground: 0 0% 100%;
+    --reward: 271 91% 65%;
+    --reward-foreground: 0 0% 100%;
+    --streak: 24 95% 53%;
+    --streak-foreground: 0 0% 100%;
+
+    /* Priority Colors */
+    --priority-low: 142 76% 36%;
+    --priority-medium: 38 92% 50%;
+    --priority-high: 24 95% 53%;
+    --priority-urgent: 0 84% 60%;
+
+    /* Gradients for enhanced visual hierarchy */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 70%));
+    --gradient-accent: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 46%));
+    --gradient-points: linear-gradient(135deg, hsl(45 93% 58%), hsl(45 93% 68%));
+    --gradient-hero: linear-gradient(135deg, hsl(217 91% 60%), hsl(271 91% 65%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(220 15% 98%));
+
+    /* Shadows for depth */
+    --shadow-sm: 0 1px 2px 0 hsl(225 50% 8% / 0.05);
+    --shadow-card: 0 4px 6px -1px hsl(225 50% 8% / 0.1), 0 2px 4px -1px hsl(225 50% 8% / 0.06);
+    --shadow-lg: 0 10px 15px -3px hsl(225 50% 8% / 0.1), 0 4px 6px -2px hsl(225 50% 8% / 0.05);
+    --shadow-glow: 0 0 0 1px hsl(217 91% 60% / 0.1), 0 0 20px hsl(217 91% 60% / 0.2);
+
+    /* Layout */
+    --radius: 0.75rem;
+    --radius-sm: 0.5rem;
+    --radius-lg: 1rem;
+
+    /* Animation */
+    --transition-base: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
 
