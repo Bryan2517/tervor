@@ -162,7 +162,7 @@ export function SupervisorDashboard({ organization, onOrganizationChange, onOrga
               <SimpleOrgSwitch 
                 currentOrganization={organization}
                 onOrganizationChange={onOrganizationChange}
-                onOrganizationJoined={onOrganizationJoined}
+                onTeamJoined={onOrganizationJoined}
                 onLogout={onLogout}
               />
             </div>
@@ -283,6 +283,12 @@ export function SupervisorDashboard({ organization, onOrganizationChange, onOrga
                   >
                     <CheckCircle2 className="w-6 h-6" />
                     <span>Quality Review</span>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/check-ins">
+                      <Calendar className="w-6 h-6" />
+                      <span>Daily Check-ins</span>
+                    </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/shop">

@@ -28,6 +28,7 @@ import {
   Clock,
   CheckCircle2,
   Gift,
+  UserCheck,
   X
 } from "lucide-react";
 
@@ -173,12 +174,12 @@ export function AdminDashboard({ organization, onOrganizationChange, onOrganizat
               <Button variant="ghost" onClick={onLogout}>
                 Logout
               </Button>
-              <SimpleOrgSwitch 
-                currentOrganization={organization}
-                onOrganizationChange={onOrganizationChange}
-                onOrganizationJoined={onOrganizationJoined}
-                onLogout={onLogout}
-              />
+        <SimpleOrgSwitch 
+          currentOrganization={organization}
+          onOrganizationChange={onOrganizationChange}
+          onTeamJoined={onOrganizationJoined}
+          onLogout={onLogout}
+        />
             </div>
           </div>
         </div>

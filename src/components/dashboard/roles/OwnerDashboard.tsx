@@ -153,7 +153,7 @@ export function OwnerDashboard({ organization, onOrganizationChange, onOrganizat
               <SimpleOrgSwitch 
                 currentOrganization={organization}
                 onOrganizationChange={onOrganizationChange}
-                onOrganizationJoined={onOrganizationJoined}
+                onTeamJoined={onOrganizationJoined}
                 onLogout={onLogout}
               />
             </div>

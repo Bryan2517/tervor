@@ -19,6 +19,7 @@ import { TimeManagement } from "./pages/admin/TimeManagement";
 import { QualityReview } from "./pages/admin/QualityReview";
 import { ShopManagement as AdminShopManagement } from "./pages/admin/ShopManagement";
 import { Settings as AdminSettings } from "./pages/admin/Settings";
+import { CheckInsWrapper } from "./pages/supervisor/CheckInsWrapper";
 import { Shop } from "./pages/shared/Shop";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
@@ -106,6 +107,10 @@ const router = createBrowserRouter([
       {
         path: "admin/settings",
         element: <AdminSettings />,
+      },
+      {
+        path: "supervisor/check-ins",
+        element: <CheckInsWrapper />,
       },
     ],
   },

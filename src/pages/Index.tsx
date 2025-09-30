@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { OrganizationSelector } from "@/components/org/OrganizationSelector";
 import { RoleDashboard } from "@/components/dashboard/RoleDashboard";
+import { DailyCheckInModal } from "@/components/dashboard/DailyCheckInModal";
+import { useDailyCheckIn } from "@/hooks/useDailyCheckIn";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -19,6 +21,13 @@ const Index = () => {
   const [user, setUser] = useState<User | null>(null);
   const [selectedOrganization, setSelectedOrganization] = useState<OrganizationWithRole | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Daily check-in functionality
+  const { showCheckInModal, closeModal, handleCheckInSuccess, modalProps } = useDailyCheckIn({
+    userId: user?.id || null,
+    orgId: selectedOrganization?.id || null,
+    orgName: selectedOrganization?.name
+  });
 
   useEffect(() => {
     // Check for existing session
@@ -101,10 +110,13 @@ const Index = () => {
 
   // Show main dashboard
   return (
-    <RoleDashboard 
-      organization={selectedOrganization} 
-      onLogout={handleLogout}
-    />
+    <>
+      <RoleDashboard 
+        organization={selectedOrganization} 
+        onLogout={handleLogout}
+      />
+      <DailyCheckInModal {...modalProps} />
+    </>
   );
 };
 
