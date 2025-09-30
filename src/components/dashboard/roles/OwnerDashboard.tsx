@@ -4,8 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
+import { SimpleOrgSwitch } from "../shared/SimpleOrgSwitch";
+import { UserManagement } from "../UserManagement";
+import { ProjectManagement } from "../ProjectManagement";
+import { PerformanceReports } from "../PerformanceReports";
+import { useToast } from "@/hooks/use-toast";
+import { createUserManagementHandlers } from "@/lib/user-management";
+import { createProjectOversightHandlers } from "@/lib/project-oversight";
+import { createRoleManagementHandlers } from "@/lib/role-management";
+import { createPerformanceReportHandlers } from "@/lib/performance-reports";
 import { 
   Crown, 
   Building2, 
@@ -30,6 +40,8 @@ interface Organization {
 
 interface OwnerDashboardProps {
   organization: Organization;
+  onOrganizationChange: (org: Organization) => void;
+  onOrganizationJoined: (org: Organization) => void;
   onLogout: () => void;
 }
 
@@ -40,7 +52,7 @@ interface OrgStats {
   completionRate: number;
 }
 
-export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) {
+export function OwnerDashboard({ organization, onOrganizationChange, onOrganizationJoined, onLogout }: OwnerDashboardProps) {
   const [stats, setStats] = useState<OrgStats>({
     totalMembers: 0,
     activeProjects: 0,
@@ -48,6 +60,17 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
     completionRate: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [activeModal, setActiveModal] = useState<'user' | 'project' | 'analytics' | null>(null);
+  const { toast } = useToast();
+
+  // Get current user ID (you'll need to implement this based on your auth system)
+  const currentUserId = "current-user-id"; // Replace with actual current user ID
+  
+  // Initialize handlers
+  const userManagement = createUserManagementHandlers(organization.id, currentUserId, organization.role, toast);
+  const projectOversight = createProjectOversightHandlers(organization.id, currentUserId, organization.role, toast);
+  const roleManagement = createRoleManagementHandlers(organization.id, currentUserId, organization.role, toast);
+  const performanceReports = createPerformanceReportHandlers(organization.id, currentUserId, organization.role, toast);
 
   useEffect(() => {
     fetchOrgStats();
@@ -127,9 +150,12 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
                   Organization Settings
                 </Link>
               </Button>
-              <Button variant="ghost" onClick={onLogout}>
-                Logout
-              </Button>
+              <SimpleOrgSwitch 
+                currentOrganization={organization}
+                onOrganizationChange={onOrganizationChange}
+                onOrganizationJoined={onOrganizationJoined}
+                onLogout={onLogout}
+              />
             </div>
           </div>
         </div>
@@ -298,6 +324,64 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
           </div>
         </div>
       </div>
+
+      {/* Management Modals */}
+      <Dialog open={activeModal === 'user'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Team Management
+            </DialogTitle>
+            <DialogDescription>
+              Manage organization members, roles, and permissions
+            </DialogDescription>
+          </DialogHeader>
+          <UserManagement 
+            organizationId={organization.id}
+            currentUserId={currentUserId}
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'project'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Project Management
+            </DialogTitle>
+            <DialogDescription>
+              Create, manage, and monitor organization projects
+            </DialogDescription>
+          </DialogHeader>
+          <ProjectManagement 
+            organizationId={organization.id}
+            currentUserId={currentUserId}
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'analytics'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Organization Analytics
+            </DialogTitle>
+            <DialogDescription>
+              Generate and analyze performance metrics for your organization
+            </DialogDescription>
+          </DialogHeader>
+          <PerformanceReports 
+            organizationId={organization.id}
+            currentUserId={currentUserId}
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -4,8 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
+import { SimpleOrgSwitch } from "../shared/SimpleOrgSwitch";
+import { TaskAssignment } from "../TaskAssignment";
+import { ProgressTracking } from "../ProgressTracking";
+import { TimeManagement } from "../TimeManagement";
+import { QualityReview } from "../QualityReview";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Eye, 
   Users, 
@@ -17,7 +24,8 @@ import {
   UserPlus,
   AlertTriangle,
   Gift,
-  Coins
+  Coins,
+  X
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -31,6 +39,8 @@ interface Organization {
 
 interface SupervisorDashboardProps {
   organization: Organization;
+  onOrganizationChange: (org: Organization) => void;
+  onOrganizationJoined: (org: Organization) => void;
   onLogout: () => void;
 }
 
@@ -42,7 +52,7 @@ interface SupervisorStats {
   totalPoints: number;
 }
 
-export function SupervisorDashboard({ organization, onLogout }: SupervisorDashboardProps) {
+export function SupervisorDashboard({ organization, onOrganizationChange, onOrganizationJoined, onLogout }: SupervisorDashboardProps) {
   const [stats, setStats] = useState<SupervisorStats>({
     directReports: 0,
     tasksOverseeing: 0,
@@ -51,6 +61,8 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
     totalPoints: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [activeModal, setActiveModal] = useState<'task' | 'progress' | 'time' | 'quality' | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchSupervisorStats();
@@ -62,9 +74,8 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
       const [employeesData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('id')
-          .eq('organization_id', organization.id)
-          .eq('role', 'employee'),
+          .select('id, role')
+          .eq('organization_id', organization.id),
         supabase
           .from('tasks')
           .select('status, created_at, project:projects!inner(organization_id)')
@@ -76,7 +87,9 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
           .eq('status', 'done')
       ]);
 
-      const directReports = employeesData.data?.length || 0;
+      // Filter employees on client side
+      const employees = employeesData.data?.filter(member => member.role === 'employee') || [];
+      const directReports = employees.length;
       const tasksOverseeing = tasksData.data?.length || 0;
       
       // Calculate tasks completed today
@@ -146,9 +159,12 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
                 <UserPlus className="w-4 h-4 mr-2" />
                 Manage Team
               </Button>
-              <Button variant="ghost" onClick={onLogout}>
-                Logout
-              </Button>
+              <SimpleOrgSwitch 
+                currentOrganization={organization}
+                onOrganizationChange={onOrganizationChange}
+                onOrganizationJoined={onOrganizationJoined}
+                onLogout={onLogout}
+              />
             </div>
           </div>
         </div>
@@ -236,19 +252,35 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => setActiveModal('task')}
+                  >
                     <Target className="w-6 h-6" />
                     <span>Task Assignment</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => setActiveModal('progress')}
+                  >
                     <TrendingUp className="w-6 h-6" />
                     <span>Progress Tracking</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => setActiveModal('time')}
+                  >
                     <Clock className="w-6 h-6" />
                     <span>Time Management</span>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
+                  <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2"
+                    onClick={() => setActiveModal('quality')}
+                  >
                     <CheckCircle2 className="w-6 h-6" />
                     <span>Quality Review</span>
                   </Button>
@@ -335,6 +367,83 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
           </div>
         </div>
       </div>
+
+      {/* Management Modals */}
+      <Dialog open={activeModal === 'task'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Target className="w-5 h-5" />
+              Task Assignment
+            </DialogTitle>
+            <DialogDescription>
+              Assign tasks to team members and track their progress
+            </DialogDescription>
+          </DialogHeader>
+          <TaskAssignment 
+            organizationId={organization.id}
+            currentUserId="current-user-id" // Replace with actual current user ID
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'progress'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Progress Tracking
+            </DialogTitle>
+            <DialogDescription>
+              Monitor team performance and project progress
+            </DialogDescription>
+          </DialogHeader>
+          <ProgressTracking 
+            organizationId={organization.id}
+            currentUserId="current-user-id" // Replace with actual current user ID
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'time'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Time Management
+            </DialogTitle>
+            <DialogDescription>
+              Track time spent on tasks and monitor team productivity
+            </DialogDescription>
+          </DialogHeader>
+          <TimeManagement 
+            organizationId={organization.id}
+            currentUserId="current-user-id" // Replace with actual current user ID
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'quality'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5" />
+              Quality Review
+            </DialogTitle>
+            <DialogDescription>
+              Review completed work and provide quality feedback
+            </DialogDescription>
+          </DialogHeader>
+          <QualityReview 
+            organizationId={organization.id}
+            currentUserId="current-user-id" // Replace with actual current user ID
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

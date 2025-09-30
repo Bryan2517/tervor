@@ -54,27 +54,17 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
   useEffect(() => {
     fetchOnlineUsers();
     
-    // Set up real-time subscription for presence updates
-    const channel = supabase
-      .channel('presence-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_presence'
-        },
-        () => {
-          fetchOnlineUsers();
-        }
-      )
-      .subscribe();
-
     // Update our own presence
     updatePresence();
 
+    // Set up periodic refresh every 2 minutes
+    const interval = setInterval(() => {
+      fetchOnlineUsers();
+      updatePresence();
+    }, 2 * 60 * 1000);
+
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(interval);
     };
   }, [organizationId]);
 
@@ -88,15 +78,8 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
             id,
             full_name,
             email,
-            avatar_url
-          ),
-          presence:user_presence(
-            status,
-            current_task_id,
+            avatar_url,
             updated_at
-          ),
-          current_task:tasks(
-            title
           )
         `)
         .eq('organization_id', organizationId)
@@ -113,12 +96,10 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
 
       data?.forEach((member: any) => {
         const user = member.user;
-        const presence = member.presence?.[0];
-        const currentTask = member.current_task?.[0];
         
-        // Consider user offline if no presence update in last 5 minutes
-        const isRecent = presence?.updated_at && 
-          (Date.now() - new Date(presence.updated_at).getTime()) < 5 * 60 * 1000;
+        // Simple online detection based on user activity (last 30 minutes)
+        const isRecent = user.updated_at && 
+          (Date.now() - new Date(user.updated_at).getTime()) < 30 * 60 * 1000;
         
         const onlineUser: OnlineUser = {
           id: user.id,
@@ -126,9 +107,9 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
           email: user.email,
           avatar_url: user.avatar_url,
           role: member.role,
-          status: isRecent ? (presence?.status || 'offline') : 'offline',
-          current_task_id: presence?.current_task_id,
-          current_task_title: currentTask?.title,
+          status: isRecent ? 'online' : 'offline',
+          current_task_id: null,
+          current_task_title: null,
         };
 
         usersByRole[member.role as UserRole].push(onlineUser);
@@ -147,13 +128,13 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
 
+      // Update user's last activity timestamp
       await supabase
-        .from('user_presence')
-        .upsert({
-          user_id: user.user.id,
-          status: 'online',
+        .from('users')
+        .update({
           updated_at: new Date().toISOString(),
-        });
+        })
+        .eq('id', user.user.id);
     } catch (error) {
       console.error('Error updating presence:', error);
     }

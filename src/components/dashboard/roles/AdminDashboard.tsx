@@ -3,9 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
 import { Link } from "react-router-dom";
+import { SimpleOrgSwitch } from "../shared/SimpleOrgSwitch";
+import { UserManagement } from "../UserManagement";
+import { ProjectManagement } from "../ProjectManagement";
+import { PerformanceReports } from "../PerformanceReports";
+import { useToast } from "@/hooks/use-toast";
+import { createUserManagementHandlers } from "@/lib/user-management";
+import { createProjectOversightHandlers } from "@/lib/project-oversight";
+import { createRoleManagementHandlers } from "@/lib/role-management";
+import { createPerformanceReportHandlers } from "@/lib/performance-reports";
 import { 
   Shield, 
   Users, 
@@ -17,7 +27,8 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Gift
+  Gift,
+  X
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -31,6 +42,8 @@ interface Organization {
 
 interface AdminDashboardProps {
   organization: Organization;
+  onOrganizationChange: (org: Organization) => void;
+  onOrganizationJoined: (org: Organization) => void;
   onLogout: () => void;
 }
 
@@ -42,7 +55,7 @@ interface AdminStats {
   totalPoints: number;
 }
 
-export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) {
+export function AdminDashboard({ organization, onOrganizationChange, onOrganizationJoined, onLogout }: AdminDashboardProps) {
   const [stats, setStats] = useState<AdminStats>({
     teamMembers: 0,
     managedProjects: 0,
@@ -51,6 +64,17 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
     totalPoints: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [activeModal, setActiveModal] = useState<'user' | 'project' | 'role' | 'performance' | null>(null);
+  const { toast } = useToast();
+
+  // Get current user ID (you'll need to implement this based on your auth system)
+  const currentUserId = "current-user-id"; // Replace with actual current user ID
+  
+  // Initialize handlers
+  const userManagement = createUserManagementHandlers(organization.id, currentUserId, organization.role, toast);
+  const projectOversight = createProjectOversightHandlers(organization.id, currentUserId, organization.role, toast);
+  const roleManagement = createRoleManagementHandlers(organization.id, currentUserId, organization.role, toast);
+  const performanceReports = createPerformanceReportHandlers(organization.id, currentUserId, organization.role, toast);
 
   useEffect(() => {
     fetchAdminStats();
@@ -149,6 +173,12 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
               <Button variant="ghost" onClick={onLogout}>
                 Logout
               </Button>
+              <SimpleOrgSwitch 
+                currentOrganization={organization}
+                onOrganizationChange={onOrganizationChange}
+                onOrganizationJoined={onOrganizationJoined}
+                onLogout={onLogout}
+              />
             </div>
           </div>
         </div>
@@ -243,7 +273,11 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <Link to="/admin/manage-team">
-                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                    <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2 w-full"
+                    onClick={() => setActiveModal('user')}
+                  >
                       <Users className="w-6 h-6" />
                       <span>Manage Team</span>
                     </Button>
@@ -255,19 +289,31 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
                     </Button>
                   </Link>
                   <Link to="/admin/time-management">
-                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                    <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2 w-full"
+                    onClick={() => setActiveModal('project')}
+                  >
                       <Clock className="w-6 h-6" />
                       <span>Time Management</span>
                     </Button>
                   </Link>
                   <Link to="/admin/quality-review">
-                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                    <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2 w-full"
+                    onClick={() => setActiveModal('role')}
+                  >
                       <CheckCircle2 className="w-6 h-6" />
                       <span>Quality Review</span>
                     </Button>
                   </Link>
                   <Link to="/admin/shop">
-                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                    <Button 
+                    variant="outline" 
+                    className="h-20 flex-col gap-2 w-full"
+                    onClick={() => setActiveModal('performance')}
+                  >
                       <Gift className="w-6 h-6" />
                       <span>Rewards Shop</span>
                     </Button>
@@ -349,6 +395,136 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
           </div>
         </div>
       </div>
+
+      {/* Management Modals */}
+      <Dialog open={activeModal === 'user'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              User Management
+            </DialogTitle>
+            <DialogDescription>
+              Manage organization members, roles, and permissions
+            </DialogDescription>
+          </DialogHeader>
+          <UserManagement 
+            organizationId={organization.id}
+            currentUserId={currentUserId}
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'project'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Project Management
+            </DialogTitle>
+            <DialogDescription>
+              Create, manage, and monitor organization projects
+            </DialogDescription>
+          </DialogHeader>
+          <ProjectManagement 
+            organizationId={organization.id}
+            currentUserId={currentUserId}
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'role'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCheck className="w-5 h-5" />
+              Role Management
+            </DialogTitle>
+            <DialogDescription>
+              Manage user roles and permissions across the organization
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Organization Roles</CardTitle>
+                <CardDescription>
+                  Manage roles for organization members
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+                        <span className="font-medium">Owner</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Full access, can transfer ownership
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
+                        <span className="font-medium">Admin</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Manage members, projects, reports
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="font-medium">Supervisor</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Manage employees, project members
+                      </p>
+                    </div>
+                    <div className="p-4 border rounded-lg">
+                      <div className="flex items-center gap-2 mb-2">
+                        <div className="w-3 h-3 bg-gray-500 rounded-full"></div>
+                        <span className="font-medium">Employee</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        View own data, assigned tasks
+                      </p>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Use the User Management section to change individual user roles. 
+                      Role changes are subject to permission hierarchy.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={activeModal === 'performance'} onOpenChange={(open) => !open && setActiveModal(null)}>
+        <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Performance Reports
+            </DialogTitle>
+            <DialogDescription>
+              Generate and analyze performance metrics for users and projects
+            </DialogDescription>
+          </DialogHeader>
+          <PerformanceReports 
+            organizationId={organization.id}
+            currentUserId={currentUserId}
+            currentUserRole={organization.role}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
