@@ -138,6 +138,7 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
       <div className="container mx-auto px-4 py-6">
         {/* Organization Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <Link to="/owner/team">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -151,7 +152,9 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
               </div>
             </CardContent>
           </Card>
+        </Link>
 
+        <Link to="/owner/projects">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -165,7 +168,9 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
               </div>
             </CardContent>
           </Card>
+        </Link>
 
+        <Link to="/owner/tasks">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -179,7 +184,9 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
               </div>
             </CardContent>
           </Card>
+        </Link>
 
+        <Link to="/owner/analytics">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -193,6 +200,7 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
               </div>
             </CardContent>
           </Card>
+        </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
