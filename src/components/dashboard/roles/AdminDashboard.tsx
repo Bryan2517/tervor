@@ -247,6 +247,12 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
                       <span>Quality Review</span>
                     </Button>
                   </Link>
+                  <Link to="/admin/shop/manage">
+                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                      <Coins className="w-6 h-6" />
+                      <span>Shop Management</span>
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>

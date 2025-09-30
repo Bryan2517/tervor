@@ -25,6 +25,8 @@ export function ManageTeam() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
     fetchTeamMembers();
@@ -35,9 +37,11 @@ export function ManageTeam() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      setCurrentUserId(user.id);
+
       const { data: memberData } = await supabase
         .from("organization_members")
-        .select("organization_id")
+        .select("organization_id, role")
         .eq("user_id", user.id)
         .eq("role", "admin")
         .single();
@@ -45,6 +49,7 @@ export function ManageTeam() {
       if (!memberData) return;
 
       setOrganizationId(memberData.organization_id);
+      setCurrentUserRole(memberData.role);
 
       const { data, error } = await supabase
         .from("organization_members")
@@ -128,6 +133,16 @@ export function ManageTeam() {
     }
   };
 
+  const canChangeRole = (targetUserId: string, targetRole: UserRole) => {
+    // Can't change own role
+    if (targetUserId === currentUserId) return false;
+    
+    // Can't change owner or admin roles (admin can only manage supervisor and employee)
+    if (targetRole === "owner" || targetRole === "admin") return false;
+    
+    return true;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -188,7 +203,7 @@ export function ManageTeam() {
                       {member.role}
                     </Badge>
 
-                    {member.role !== "owner" && (
+                    {canChangeRole(member.user_id, member.role) && (
                       <Select
                         value={member.role}
                         onValueChange={(value) => handleRoleChange(member.user_id, value as UserRole)}
@@ -201,6 +216,9 @@ export function ManageTeam() {
                           <SelectItem value="employee">Employee</SelectItem>
                         </SelectContent>
                       </Select>
+                    )}
+                    {!canChangeRole(member.user_id, member.role) && member.user_id === currentUserId && (
+                      <span className="text-sm text-muted-foreground">(You)</span>
                     )}
                   </div>
                 </div>
