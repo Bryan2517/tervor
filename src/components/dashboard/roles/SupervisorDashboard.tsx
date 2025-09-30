@@ -16,7 +16,8 @@ import {
   Calendar,
   UserPlus,
   AlertTriangle,
-  Gift
+  Gift,
+  Coins
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -38,6 +39,7 @@ interface SupervisorStats {
   tasksOverseeing: number;
   completedToday: number;
   teamEfficiency: number;
+  totalPoints: number;
 }
 
 export function SupervisorDashboard({ organization, onLogout }: SupervisorDashboardProps) {
@@ -46,6 +48,7 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
     tasksOverseeing: 0,
     completedToday: 0,
     teamEfficiency: 0,
+    totalPoints: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -56,7 +59,7 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
   const fetchSupervisorStats = async () => {
     try {
       // Fetch supervisor-specific statistics
-      const [employeesData, tasksData] = await Promise.all([
+      const [employeesData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
           .select('id')
@@ -65,7 +68,12 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
         supabase
           .from('tasks')
           .select('status, created_at, project:projects!inner(organization_id)')
+          .eq('project.organization_id', organization.id),
+        supabase
+          .from('tasks')
+          .select('status, priority, project:projects!inner(organization_id)')
           .eq('project.organization_id', organization.id)
+          .eq('status', 'done')
       ]);
 
       const directReports = employeesData.data?.length || 0;
@@ -78,14 +86,23 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
         new Date(task.created_at).toDateString() === today
       ).length || 0;
 
-      // Mock efficiency calculation
-      const teamEfficiency = Math.round(Math.random() * 20 + 75); // 75-95%
+      // Calculate total points
+      const completedTasks = completedTasksData.data || [];
+      const totalPoints = completedTasks.reduce((sum, task) => {
+        const points = task.priority === 'high' ? 3 : task.priority === 'medium' ? 2 : 1;
+        return sum + points;
+      }, 0);
+
+      // Calculate efficiency
+      const totalTasks = tasksData.data?.length || 0;
+      const teamEfficiency = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
       setStats({
         directReports,
         tasksOverseeing,
         completedToday,
         teamEfficiency,
+        totalPoints,
       });
     } catch (error) {
       console.error('Error fetching supervisor stats:', error);
@@ -187,7 +204,13 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Team Efficiency</p>
-                  <p className="text-2xl font-bold">{stats.teamEfficiency}%</p>
+                  <div className="flex items-center gap-3">
+                    <p className="text-2xl font-bold">{stats.teamEfficiency}%</p>
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Coins className="w-4 h-4" />
+                      <span>{stats.totalPoints}</span>
+                    </div>
+                  </div>
                 </div>
                 <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-accent" />

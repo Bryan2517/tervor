@@ -38,7 +38,6 @@ interface OrgStats {
   activeProjects: number;
   totalTasks: number;
   completionRate: number;
-  totalPoints: number;
 }
 
 export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) {
@@ -47,7 +46,6 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
     activeProjects: 0,
     totalTasks: 0,
     completionRate: 0,
-    totalPoints: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -84,7 +82,6 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
         activeProjects,
         totalTasks,
         completionRate,
-        totalPoints: completedTasks * 10, // Mock calculation
       });
     } catch (error) {
       console.error('Error fetching organization stats:', error);
@@ -140,7 +137,7 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
 
       <div className="container mx-auto px-4 py-6">
         {/* Organization Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -192,20 +189,6 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
                 </div>
                 <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
                   <TrendingUp className="w-6 h-6 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card variant="points">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-points-foreground">Total Points</p>
-                  <p className="text-2xl font-bold text-points-foreground">{stats.totalPoints}</p>
-                </div>
-                <div className="w-12 h-12 bg-points-foreground/10 rounded-lg flex items-center justify-center">
-                  <Coins className="w-6 h-6 text-points-foreground" />
                 </div>
               </div>
             </CardContent>
