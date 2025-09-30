@@ -1138,7 +1138,7 @@ export type Database = {
       task_priority: "low" | "medium" | "high" | "urgent"
       task_status: "todo" | "in_progress" | "blocked" | "done"
       timelog_action: "start" | "pause" | "resume" | "complete"
-      user_role: "owner" | "admin" | "manager" | "employee"
+      user_role: "owner" | "admin" | "supervisor" | "employee"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1284,7 +1284,7 @@ export const Constants = {
       task_priority: ["low", "medium", "high", "urgent"],
       task_status: ["todo", "in_progress", "blocked", "done"],
       timelog_action: ["start", "pause", "resume", "complete"],
-      user_role: ["owner", "admin", "manager", "employee"],
+      user_role: ["owner", "admin", "supervisor", "employee"],
     },
   },
 } as const
