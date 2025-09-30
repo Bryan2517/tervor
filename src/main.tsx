@@ -11,6 +11,7 @@ import { Analytics } from "./pages/owner/Analytics";
 import { TeamManagement } from "./pages/owner/TeamManagement";
 import { Settings } from "./pages/owner/Settings";
 import { ShopManagement } from "./pages/owner/ShopManagement";
+import { TasksOverview } from "./pages/owner/TasksOverview";
 import { ManageTeam } from "./pages/admin/ManageTeam";
 import { TaskAssignment } from "./pages/admin/TaskAssignment";
 import { ProgressTracking } from "./pages/admin/ProgressTracking";
@@ -61,6 +62,10 @@ const router = createBrowserRouter([
       {
         path: "owner/shop/manage",
         element: <ShopManagement />,
+      },
+      {
+        path: "owner/tasks",
+        element: <TasksOverview />,
       },
       {
         path: "admin/manage-team",
