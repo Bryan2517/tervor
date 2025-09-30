@@ -18,6 +18,7 @@ import { TimeManagement } from "./pages/admin/TimeManagement";
 import { QualityReview } from "./pages/admin/QualityReview";
 import { ShopManagement as AdminShopManagement } from "./pages/admin/ShopManagement";
 import { Settings as AdminSettings } from "./pages/admin/Settings";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const router = createBrowserRouter([
   {
@@ -88,8 +89,13 @@ const router = createBrowserRouter([
   },
 ]);
 
+const queryClient = new QueryClient();
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <RouterProvider router={router} />
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   </StrictMode>
 );
+
