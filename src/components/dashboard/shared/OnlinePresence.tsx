@@ -84,33 +84,25 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
         .from('organization_members')
         .select(`
           role,
-          user_id,
-          users!inner(
+          user:users!inner(
             id,
             full_name,
             email,
             avatar_url
+          ),
+          presence:user_presence(
+            status,
+            current_task_id,
+            updated_at
+          ),
+          current_task:tasks(
+            title
           )
         `)
         .eq('organization_id', organizationId)
         .order('role', { ascending: false });
 
       if (error) throw error;
-
-      // Fetch user presence and tasks separately
-      const userIds = data?.map(m => m.user_id) || [];
-      
-      const [presenceData, tasksData] = await Promise.all([
-        supabase
-          .from('user_presence')
-          .select('user_id, status, current_task_id, updated_at')
-          .in('user_id', userIds),
-        supabase
-          .from('tasks')
-          .select('id, title')
-          .in('id', data?.flatMap(m => []).filter(Boolean) || [])
-      ]);
-
 
       const usersByRole: Record<UserRole, OnlineUser[]> = {
         owner: [],
@@ -119,14 +111,10 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
         employee: [],
       };
 
-      // Create maps for quick lookup
-      const presenceMap = new Map(presenceData.data?.map(p => [p.user_id, p]) || []);
-      const tasksMap = new Map(tasksData.data?.map(t => [t.id, t]) || []);
-
       data?.forEach((member: any) => {
-        const user = member.users;
-        const presence = presenceMap.get(member.user_id);
-        const currentTask = presence?.current_task_id ? tasksMap.get(presence.current_task_id) : null;
+        const user = member.user;
+        const presence = member.presence?.[0];
+        const currentTask = member.current_task?.[0];
         
         // Consider user offline if no presence update in last 5 minutes
         const isRecent = presence?.updated_at && 
@@ -138,7 +126,7 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
           email: user.email,
           avatar_url: user.avatar_url,
           role: member.role,
-          status: isRecent && presence?.status ? (presence.status as "online" | "away" | "offline") : 'offline',
+          status: isRecent ? (presence?.status || 'offline') : 'offline',
           current_task_id: presence?.current_task_id,
           current_task_title: currentTask?.title,
         };

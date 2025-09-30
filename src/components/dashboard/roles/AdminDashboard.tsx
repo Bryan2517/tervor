@@ -62,7 +62,7 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
       const [membersData, projectsData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('user_id')
+          .select('id')
           .eq('organization_id', organization.id)
           .neq('role', 'owner'),
         supabase

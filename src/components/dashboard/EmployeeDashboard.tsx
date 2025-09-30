@@ -6,9 +6,6 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
-import { OrganizationSelector } from "../org/OrganizationSelector";
-import { SimpleOrgSwitch } from "./shared/SimpleOrgSwitch";
-import { SmartJoinTeamCard } from "./shared/SmartJoinTeamCard";
 import { cn } from "@/lib/utils";
 import { 
   Calendar, 
@@ -54,8 +51,6 @@ interface Task extends Tables<"tasks"> {
 
 interface EmployeeDashboardProps {
   organization: OrganizationWithRole;
-  onOrganizationChange: (org: OrganizationWithRole) => void;
-  onTeamJoined: (org: OrganizationWithRole) => void;
   onLogout: () => void;
 }
 
@@ -73,7 +68,7 @@ const priorityColors = {
   urgent: "border-l-priority-urgent",
 };
 
-export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJoined, onLogout }: EmployeeDashboardProps) {
+export function EmployeeDashboard({ organization, onLogout }: EmployeeDashboardProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState({
     ongoing: 0,
@@ -267,12 +262,9 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
               <Button variant="outline" asChild>
                 <Link to="/employee/shop">Shop</Link>
               </Button>
-              <SimpleOrgSwitch 
-                currentOrganization={organization}
-                onOrganizationChange={onOrganizationChange}
-                onTeamJoined={onTeamJoined}
-                onLogout={onLogout}
-              />
+              <Button variant="ghost" onClick={onLogout}>
+                Logout
+              </Button>
             </div>
           </div>
         </div>
@@ -336,13 +328,6 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
               </div>
             </CardContent>
           </Card>
-        </div>
-
-        {/* Join Team Card */}
-        <div className="mb-8">
-          <SmartJoinTeamCard 
-            onTeamJoined={onTeamJoined}
-          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

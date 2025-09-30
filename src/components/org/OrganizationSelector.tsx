@@ -56,20 +56,13 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
 
   const fetchOrganizations = async () => {
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
-
       const { data, error } = await supabase
         .from("organization_members")
         .select(`
           role,
-          last_selected,
-          created_at,
           organization:organizations(*)
         `)
-        .eq("user_id", user.user.id)
-        .order("last_selected", { ascending: false })
-        .order("created_at", { ascending: false });
+        .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
 
       if (error) throw error;
 
@@ -78,9 +71,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
         .map(item => ({
           ...item.organization,
           role: item.role,
-          last_selected: item.last_selected,
-          joined_at: item.created_at,
-        })) as (OrganizationWithRole & { last_selected: boolean; joined_at: string })[];
+        })) as OrganizationWithRole[];
 
       setOrganizations(orgsWithRoles || []);
     } catch (error) {
@@ -91,47 +82,19 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
   };
 
   const handleSelectOrganization = async (org: OrganizationWithRole) => {
-    try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
+    // Update last_selected for this organization
+    await supabase
+      .from("organization_members")
+      .update({ last_selected: false })
+      .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
 
-      // Try the new switch_organization function first
-      try {
-        const { error } = await supabase.rpc('switch_organization', {
-          p_user_id: user.user.id,
-          p_org_id: org.id
-        });
+    await supabase
+      .from("organization_members")
+      .update({ last_selected: true })
+      .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
+      .eq("organization_id", org.id);
 
-        if (error) throw error;
-      } catch (rpcError) {
-        // Fallback to manual update if function doesn't exist
-        console.log("switch_organization function not found, using fallback method");
-        
-        // Set all memberships to not selected
-        await supabase
-          .from("organization_members")
-          .update({ last_selected: false })
-          .eq("user_id", user.user.id);
-
-        // Set the specified organization as selected
-        const { error: updateError } = await supabase
-          .from("organization_members")
-          .update({ last_selected: true })
-          .eq("user_id", user.user.id)
-          .eq("organization_id", org.id);
-
-        if (updateError) throw updateError;
-      }
-
-      onOrganizationSelect(org);
-    } catch (error) {
-      console.error("Error switching organization:", error);
-      toast({
-        title: "Error",
-        description: "Failed to switch organization",
-        variant: "destructive",
-      });
-    }
+    onOrganizationSelect(org);
   };
 
   const handleCreateOrganization = async () => {
@@ -366,16 +329,12 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
         <div className="grid gap-4">
           {organizations.map((org) => {
             const RoleIcon = roleIcons[org.role];
-            const isCurrentlySelected = (org as any).last_selected;
             
             return (
               <Card
                 key={org.id}
-                variant={isCurrentlySelected ? "elevated" : "interactive"}
-                className={cn(
-                  "cursor-pointer transition-all duration-200",
-                  isCurrentlySelected && "ring-2 ring-primary/20 bg-primary/5"
-                )}
+                variant="interactive"
+                className="cursor-pointer"
                 onClick={() => handleSelectOrganization(org)}
               >
                 <CardContent className="flex items-center gap-4 p-6">
@@ -393,36 +352,15 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
                         <RoleIcon className="w-3 h-3 mr-1" />
                         {org.role}
                       </Badge>
-                      {isCurrentlySelected && (
-                        <Badge variant="default" className="text-xs">
-                          Current
-                        </Badge>
-                      )}
                     </div>
                     {org.description && (
-                      <p className="text-sm text-muted-foreground mb-2">{org.description}</p>
+                      <p className="text-sm text-muted-foreground">{org.description}</p>
                     )}
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                      <span>Joined {new Date((org as any).joined_at).toLocaleDateString()}</span>
-                      <div className="flex items-center gap-1">
-                        <Users className="w-3 h-3" />
-                        <span>Team Member</span>
-                      </div>
-                    </div>
                   </div>
                   
                   <div className="flex items-center gap-2 text-muted-foreground">
-                    {isCurrentlySelected ? (
-                      <div className="flex items-center gap-1 text-primary">
-                        <div className="w-2 h-2 bg-primary rounded-full"></div>
-                        <span className="text-sm font-medium">Active</span>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2 text-muted-foreground">
-                        <Users className="w-4 h-4" />
-                        <span className="text-sm">Switch to</span>
-                      </div>
-                    )}
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm">Team</span>
                   </div>
                 </CardContent>
               </Card>
