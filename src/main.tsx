@@ -11,6 +11,13 @@ import { Analytics } from "./pages/owner/Analytics";
 import { TeamManagement } from "./pages/owner/TeamManagement";
 import { Settings } from "./pages/owner/Settings";
 import { ShopManagement } from "./pages/owner/ShopManagement";
+import { ManageTeam } from "./pages/admin/ManageTeam";
+import { TaskAssignment } from "./pages/admin/TaskAssignment";
+import { ProgressTracking } from "./pages/admin/ProgressTracking";
+import { TimeManagement } from "./pages/admin/TimeManagement";
+import { QualityReview } from "./pages/admin/QualityReview";
+import { ShopManagement as AdminShopManagement } from "./pages/admin/ShopManagement";
+import { Settings as AdminSettings } from "./pages/admin/Settings";
 
 const router = createBrowserRouter([
   {
@@ -48,6 +55,34 @@ const router = createBrowserRouter([
       {
         path: "owner/shop",
         element: <ShopManagement />,
+      },
+      {
+        path: "admin/manage-team",
+        element: <ManageTeam />,
+      },
+      {
+        path: "admin/task-assignment",
+        element: <TaskAssignment />,
+      },
+      {
+        path: "admin/progress-tracking",
+        element: <ProgressTracking />,
+      },
+      {
+        path: "admin/time-management",
+        element: <TimeManagement />,
+      },
+      {
+        path: "admin/quality-review",
+        element: <QualityReview />,
+      },
+      {
+        path: "admin/shop",
+        element: <AdminShopManagement />,
+      },
+      {
+        path: "admin/settings",
+        element: <AdminSettings />,
       },
     ],
   },

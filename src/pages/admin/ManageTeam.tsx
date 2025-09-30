@@ -1,0 +1,214 @@
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ArrowLeft, Users, UserCog, Shield, Eye } from "lucide-react";
+import { Link } from "react-router-dom";
+import { toast } from "@/hooks/use-toast";
+
+type UserRole = "owner" | "admin" | "supervisor" | "employee";
+
+interface TeamMember {
+  user_id: string;
+  role: UserRole;
+  users: {
+    full_name: string;
+    email: string;
+    avatar_url: string | null;
+  };
+}
+
+export function ManageTeam() {
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchTeamMembers();
+  }, []);
+
+  const fetchTeamMembers = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: memberData } = await supabase
+        .from("organization_members")
+        .select("organization_id")
+        .eq("user_id", user.id)
+        .eq("role", "admin")
+        .single();
+
+      if (!memberData) return;
+
+      setOrganizationId(memberData.organization_id);
+
+      const { data, error } = await supabase
+        .from("organization_members")
+        .select(`
+          user_id,
+          role,
+          users!inner(
+            full_name,
+            email,
+            avatar_url
+          )
+        `)
+        .eq("organization_id", memberData.organization_id)
+        .order("role");
+
+      if (error) throw error;
+      setMembers(data as TeamMember[]);
+    } catch (error) {
+      console.error("Error fetching team members:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load team members",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    if (!organizationId) return;
+
+    try {
+      const { error } = await supabase
+        .from("organization_members")
+        .update({ role: newRole })
+        .eq("organization_id", organizationId)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Team member role updated successfully",
+      });
+
+      fetchTeamMembers();
+    } catch (error) {
+      console.error("Error updating role:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update team member role",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getRoleIcon = (role: UserRole) => {
+    switch (role) {
+      case "owner":
+        return <Shield className="w-4 h-4" />;
+      case "admin":
+        return <Shield className="w-4 h-4" />;
+      case "supervisor":
+        return <UserCog className="w-4 h-4" />;
+      case "employee":
+        return <Users className="w-4 h-4" />;
+    }
+  };
+
+  const getRoleBadgeVariant = (role: UserRole) => {
+    switch (role) {
+      case "owner":
+        return "default";
+      case "admin":
+        return "secondary";
+      case "supervisor":
+        return "outline";
+      case "employee":
+        return "outline";
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
+            <Link to="/">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold">Manage Team</h1>
+              <p className="text-sm text-muted-foreground">View and manage team member roles</p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <div className="container mx-auto px-4 py-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="w-5 h-5" />
+              Team Members
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {members.map((member) => (
+                <div
+                  key={member.user_id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <Avatar className="w-12 h-12">
+                      <AvatarImage src={member.users.avatar_url || undefined} />
+                      <AvatarFallback className="bg-primary text-primary-foreground">
+                        {member.users.full_name?.substring(0, 2).toUpperCase() || "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{member.users.full_name}</p>
+                      <p className="text-sm text-muted-foreground">{member.users.email}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <Badge variant={getRoleBadgeVariant(member.role)} className="flex items-center gap-1">
+                      {getRoleIcon(member.role)}
+                      {member.role}
+                    </Badge>
+
+                    {member.role !== "owner" && (
+                      <Select
+                        value={member.role}
+                        onValueChange={(value) => handleRoleChange(member.user_id, value as UserRole)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="supervisor">Supervisor</SelectItem>
+                          <SelectItem value="employee">Employee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

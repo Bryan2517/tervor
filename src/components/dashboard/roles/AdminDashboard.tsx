@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
+import { Link } from "react-router-dom";
 import { 
   Shield, 
   Users, 
@@ -14,7 +15,9 @@ import {
   Coins,
   TrendingUp,
   Calendar,
-  UserCheck
+  UserCheck,
+  Clock,
+  CheckCircle2
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -122,10 +125,12 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="outline">
-                <Settings className="w-4 h-4 mr-2" />
-                Team Settings
-              </Button>
+              <Link to="/admin/settings">
+                <Button variant="outline">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Settings
+                </Button>
+              </Link>
               <Button variant="ghost" onClick={onLogout}>
                 Logout
               </Button>
@@ -137,61 +142,69 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
       <div className="container mx-auto px-4 py-6">
         {/* Admin Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Team Members</p>
-                  <p className="text-2xl font-bold">{stats.teamMembers}</p>
+          <Link to="/admin/manage-team">
+            <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Team Members</p>
+                    <p className="text-2xl font-bold">{stats.teamMembers}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Users className="w-6 h-6 text-primary" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Managed Projects</p>
-                  <p className="text-2xl font-bold">{stats.managedProjects}</p>
+          <Link to="/admin/progress-tracking">
+            <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Managed Projects</p>
+                    <p className="text-2xl font-bold">{stats.managedProjects}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
+                    <Building2 className="w-6 h-6 text-accent" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-                  <Building2 className="w-6 h-6 text-accent" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
-                  <p className="text-2xl font-bold">{stats.activeTasks}</p>
+          <Link to="/admin/task-assignment">
+            <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
+                    <p className="text-2xl font-bold">{stats.activeTasks}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
+                    <Target className="w-6 h-6 text-warning" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <Target className="w-6 h-6 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Team Productivity</p>
-                  <p className="text-2xl font-bold">{stats.teamProductivity}%</p>
+          <Link to="/admin/shop">
+            <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Shop Points</p>
+                    <p className="text-2xl font-bold">{stats.teamProductivity}%</p>
+                  </div>
+                  <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                    <Coins className="w-6 h-6 text-success" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -210,22 +223,30 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Users className="w-6 h-6" />
-                    <span>User Management</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Building2 className="w-6 h-6" />
-                    <span>Project Oversight</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <UserCheck className="w-6 h-6" />
-                    <span>Role Management</span>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <TrendingUp className="w-6 h-6" />
-                    <span>Performance Reports</span>
-                  </Button>
+                  <Link to="/admin/manage-team">
+                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                      <Users className="w-6 h-6" />
+                      <span>Manage Team</span>
+                    </Button>
+                  </Link>
+                  <Link to="/admin/task-assignment">
+                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                      <Target className="w-6 h-6" />
+                      <span>Task Assignment</span>
+                    </Button>
+                  </Link>
+                  <Link to="/admin/time-management">
+                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                      <Clock className="w-6 h-6" />
+                      <span>Time Management</span>
+                    </Button>
+                  </Link>
+                  <Link to="/admin/quality-review">
+                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                      <CheckCircle2 className="w-6 h-6" />
+                      <span>Quality Review</span>
+                    </Button>
+                  </Link>
                 </div>
               </CardContent>
             </Card>
