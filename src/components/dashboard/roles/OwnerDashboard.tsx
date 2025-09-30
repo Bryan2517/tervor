@@ -248,20 +248,8 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/owner/settings">
-                      <Settings className="w-6 h-6" />
+                      <Settings className="w-4 h-4 mr-2" />
                       <span>Settings</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/owner/shop">
-                      <Gift className="w-6 h-6" />
-                      <span>Rewards Shop</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/owner/shop/manage">
-                      <Settings className="w-6 h-6" />
-                      <span>Shop Management</span>
                     </Link>
                   </Button>
                 </div>

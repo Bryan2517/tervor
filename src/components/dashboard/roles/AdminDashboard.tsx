@@ -15,9 +15,9 @@ import {
   Coins,
   TrendingUp,
   Calendar,
-  UserCheck,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Gift
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -39,6 +39,7 @@ interface AdminStats {
   managedProjects: number;
   activeTasks: number;
   teamProductivity: number;
+  totalPoints: number;
 }
 
 export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) {
@@ -47,6 +48,7 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
     managedProjects: 0,
     activeTasks: 0,
     teamProductivity: 0,
+    totalPoints: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -57,7 +59,7 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
   const fetchAdminStats = async () => {
     try {
       // Fetch admin-specific statistics
-      const [membersData, projectsData, tasksData] = await Promise.all([
+      const [membersData, projectsData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
           .select('id')
@@ -71,21 +73,34 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
           .from('tasks')
           .select('status, project:projects!inner(organization_id)')
           .eq('project.organization_id', organization.id)
-          .neq('status', 'done')
+          .neq('status', 'done'),
+        supabase
+          .from('tasks')
+          .select('status, priority, project:projects!inner(organization_id)')
+          .eq('project.organization_id', organization.id)
+          .eq('status', 'done')
       ]);
 
       const teamMembers = membersData.data?.length || 0;
       const managedProjects = projectsData.data?.length || 0;
       const activeTasks = tasksData.data?.length || 0;
       
-      // Mock productivity calculation
-      const teamProductivity = Math.round(Math.random() * 30 + 70); // 70-100%
+      // Calculate total points and productivity
+      const completedTasks = completedTasksData.data || [];
+      const totalPoints = completedTasks.reduce((sum, task) => {
+        const points = task.priority === 'high' ? 3 : task.priority === 'medium' ? 2 : 1;
+        return sum + points;
+      }, 0);
+      
+      const totalTasks = activeTasks + completedTasks.length;
+      const teamProductivity = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
       setStats({
         teamMembers,
         managedProjects,
         activeTasks,
         teamProductivity,
+        totalPoints,
       });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
@@ -190,21 +205,25 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
             </Card>
           </Link>
 
-          <Link to="/admin/shop">
-            <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Shop Points</p>
+          <Card variant="interactive">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Team Productivity</p>
+                  <div className="flex items-center gap-3">
                     <p className="text-2xl font-bold">{stats.teamProductivity}%</p>
-                  </div>
-                  <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                    <Coins className="w-6 h-6 text-success" />
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Coins className="w-4 h-4" />
+                      <span>{stats.totalPoints}</span>
+                    </div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </Link>
+                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-success" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -247,10 +266,10 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
                       <span>Quality Review</span>
                     </Button>
                   </Link>
-                  <Link to="/admin/shop/manage">
+                  <Link to="/admin/shop">
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
-                      <Coins className="w-6 h-6" />
-                      <span>Shop Management</span>
+                      <Gift className="w-6 h-6" />
+                      <span>Rewards Shop</span>
                     </Button>
                   </Link>
                 </div>
