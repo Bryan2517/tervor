@@ -101,12 +101,7 @@ export async function getCheckInsForDate(
       clock_in_at,
       local_date,
       source,
-      user:profiles!inner(
-        id,
-        full_name,
-        email,
-        avatar_url
-      )
+      user_id
     `)
     .eq('org_id', orgId)
     .eq('local_date', dateISO)
@@ -132,12 +127,7 @@ export async function getCheckInsForDateRange(
       clock_in_at,
       local_date,
       source,
-      user:profiles!inner(
-        id,
-        full_name,
-        email,
-        avatar_url
-      )
+      user_id
     `)
     .eq('org_id', orgId)
     .gte('local_date', startDate)
@@ -241,7 +231,7 @@ export function subscribeToCheckIns(
  * @param checkIns - Array of check-ins with user data
  * @returns CSV string
  */
-export function exportCheckInsToCSV(checkIns: CheckInWithUser[]): string {
+export function exportCheckInsToCSV(checkIns: any[]): string {
   const headers = [
     'Name',
     'Email',
@@ -252,8 +242,8 @@ export function exportCheckInsToCSV(checkIns: CheckInWithUser[]): string {
   ];
 
   const rows = checkIns.map(checkIn => [
-    checkIn.user.full_name,
-    checkIn.user.email,
+    checkIn.user?.full_name || 'Unknown',
+    checkIn.user?.email || '',
     new Date(checkIn.clock_in_at).toLocaleString('en-US', {
       timeZone: 'Asia/Kuala_Lumpur',
       hour: '2-digit',

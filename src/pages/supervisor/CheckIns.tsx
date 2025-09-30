@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
 import { Input } from "@/components/ui/input";
@@ -50,13 +51,41 @@ export function CheckInsPage({ organizationId, organizationName }: CheckInsPageP
   const loadCheckIns = async (date: string) => {
     setLoading(true);
     try {
-      const { data, error } = await getCheckInsForDate(organizationId, date);
+      // First get check-ins
+      const { data: checkInsData, error: checkInsError } = await getCheckInsForDate(organizationId, date);
       
-      if (error) {
-        throw error;
+      if (checkInsError) {
+        throw checkInsError;
       }
       
-      setCheckIns(data || []);
+      if (!checkInsData || checkInsData.length === 0) {
+        setCheckIns([]);
+        return;
+      }
+      
+      // Get user IDs
+      const userIds = checkInsData.map(checkIn => checkIn.user_id);
+      
+      // Fetch user data separately
+      const { data: usersData, error: usersError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, avatar_url')
+        .in('id', userIds);
+      
+      if (usersError) {
+        throw usersError;
+      }
+      
+      // Combine the data
+      const combinedData = checkInsData.map(checkIn => {
+        const user = usersData?.find(u => u.id === checkIn.user_id);
+        return {
+          ...checkIn,
+          user: user || { id: checkIn.user_id, full_name: 'Unknown', email: '', avatar_url: null }
+        };
+      });
+      
+      setCheckIns(combinedData);
     } catch (error: any) {
       console.error("Error loading check-ins:", error);
       toast({
