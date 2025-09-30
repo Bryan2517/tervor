@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
@@ -14,7 +15,8 @@ import {
   Coins,
   Target,
   Calendar,
-  BarChart3
+  BarChart3,
+  Gift
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -122,9 +124,11 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="outline">
-                <Settings className="w-4 h-4 mr-2" />
-                Organization Settings
+              <Button variant="outline" asChild>
+                <Link to="/owner/organization-settings">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Organization Settings
+                </Link>
               </Button>
               <Button variant="ghost" onClick={onLogout}>
                 Logout
@@ -224,21 +228,35 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Building2 className="w-6 h-6" />
-                    <span>Manage Projects</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/projects">
+                      <Building2 className="w-6 h-6" />
+                      <span>Manage Projects</span>
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Users className="w-6 h-6" />
-                    <span>Team Management</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/team">
+                      <Users className="w-6 h-6" />
+                      <span>Team Management</span>
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <BarChart3 className="w-6 h-6" />
-                    <span>Analytics</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/analytics">
+                      <BarChart3 className="w-6 h-6" />
+                      <span>Analytics</span>
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Settings className="w-6 h-6" />
-                    <span>Settings</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/settings">
+                      <Settings className="w-6 h-6" />
+                      <span>Settings</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/shop">
+                      <Gift className="w-6 h-6" />
+                      <span>Shop</span>
+                    </Link>
                   </Button>
                 </div>
               </CardContent>
