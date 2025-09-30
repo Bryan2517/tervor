@@ -27,11 +27,11 @@ import {
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 
-type UserRole = "owner" | "admin" | "manager" | "employee";
+type UserRole = "owner" | "admin" | "supervisor" | "employee";
 type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 type TaskPriority = "low" | "medium" | "high" | "urgent";
 
-interface Organization {
+interface OrganizationWithRole {
   id: string;
   name: string;
   logo_url?: string;
@@ -49,7 +49,7 @@ interface Task extends Tables<"tasks"> {
 }
 
 interface EmployeeDashboardProps {
-  organization: Organization;
+  organization: OrganizationWithRole;
   onLogout: () => void;
 }
 

@@ -3,11 +3,11 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { OrganizationSelector } from "@/components/org/OrganizationSelector";
-import { EmployeeDashboard } from "@/components/dashboard/EmployeeDashboard";
+import { RoleDashboard } from "@/components/dashboard/RoleDashboard";
 
-type UserRole = "owner" | "admin" | "manager" | "employee";
+type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
-interface Organization {
+interface OrganizationWithRole {
   id: string;
   name: string;
   logo_url?: string;
@@ -17,7 +17,7 @@ interface Organization {
 const Index = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [selectedOrganization, setSelectedOrganization] = useState<Organization | null>(null);
+  const [selectedOrganization, setSelectedOrganization] = useState<OrganizationWithRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ const Index = () => {
           setSelectedOrganization({
             ...data.organization,
             role: data.role,
-          } as Organization);
+          } as OrganizationWithRole);
         }
       }
       setLoading(false);
@@ -70,7 +70,7 @@ const Index = () => {
     setUser(user);
   };
 
-  const handleOrganizationSelect = (org: Organization) => {
+  const handleOrganizationSelect = (org: OrganizationWithRole) => {
     setSelectedOrganization(org);
   };
 
@@ -101,7 +101,7 @@ const Index = () => {
 
   // Show main dashboard
   return (
-    <EmployeeDashboard 
+    <RoleDashboard 
       organization={selectedOrganization} 
       onLogout={handleLogout}
     />

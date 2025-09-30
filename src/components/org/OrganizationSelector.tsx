@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 type Organization = Tables<"my_organizations">;
-type UserRole = "owner" | "admin" | "manager" | "employee";
+type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
 interface OrganizationWithRole extends Organization {
   role: UserRole;
