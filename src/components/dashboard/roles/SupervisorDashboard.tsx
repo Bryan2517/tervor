@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
@@ -14,7 +15,8 @@ import {
   TrendingUp,
   Calendar,
   UserPlus,
-  AlertTriangle
+  AlertTriangle,
+  Gift
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -226,6 +228,12 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
                   <Button variant="outline" className="h-20 flex-col gap-2">
                     <CheckCircle2 className="w-6 h-6" />
                     <span>Quality Review</span>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/shop">
+                      <Gift className="w-6 h-6" />
+                      <span>Rewards Shop</span>
+                    </Link>
                   </Button>
                 </div>
               </CardContent>

@@ -18,7 +18,7 @@ import { TimeManagement } from "./pages/admin/TimeManagement";
 import { QualityReview } from "./pages/admin/QualityReview";
 import { ShopManagement as AdminShopManagement } from "./pages/admin/ShopManagement";
 import { Settings as AdminSettings } from "./pages/admin/Settings";
-import { Shop as AdminShop } from "./pages/admin/Shop";
+import { Shop } from "./pages/shared/Shop";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const router = createBrowserRouter([
@@ -56,6 +56,10 @@ const router = createBrowserRouter([
       },
       {
         path: "owner/shop",
+        element: <Shop />,
+      },
+      {
+        path: "owner/shop/manage",
         element: <ShopManagement />,
       },
       {
@@ -80,7 +84,15 @@ const router = createBrowserRouter([
       },
       {
         path: "admin/shop",
-        element: <AdminShop />,
+        element: <Shop />,
+      },
+      {
+        path: "supervisor/shop",
+        element: <Shop />,
+      },
+      {
+        path: "employee/shop",
+        element: <Shop />,
       },
       {
         path: "admin/shop/manage",

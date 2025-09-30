@@ -16,10 +16,6 @@ interface Reward {
   active: boolean;
 }
 
-interface UserPoints {
-  total_points: number;
-}
-
 export function Shop() {
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [userPoints, setUserPoints] = useState<number>(0);

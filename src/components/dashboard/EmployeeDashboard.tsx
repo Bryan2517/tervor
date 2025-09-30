@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
@@ -258,7 +259,9 @@ export function EmployeeDashboard({ organization, onLogout }: EmployeeDashboardP
                 <Coins className="w-5 h-5" />
                 <span className="font-semibold">{stats.points}</span>
               </Card>
-              <Button variant="outline">Shop</Button>
+              <Button variant="outline" asChild>
+                <Link to="/employee/shop">Shop</Link>
+              </Button>
               <Button variant="ghost" onClick={onLogout}>
                 Logout
               </Button>
