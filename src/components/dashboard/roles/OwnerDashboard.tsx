@@ -218,7 +218,7 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/owner/projects">
                       <Building2 className="w-6 h-6" />
@@ -235,6 +235,12 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
                     <Link to="/owner/analytics">
                       <BarChart3 className="w-6 h-6" />
                       <span>Analytics</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/shop/manage">
+                      <Gift className="w-6 h-6" />
+                      <span>Shop Management</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
