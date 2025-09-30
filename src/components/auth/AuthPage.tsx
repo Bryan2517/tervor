@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Users, Target, Award } from "lucide-react";
 import { z } from "zod";
+import { JoinOrganization } from "./JoinOrganization";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -21,6 +22,7 @@ interface AuthPageProps {
 
 export function AuthPage({ onAuthSuccess }: AuthPageProps) {
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showJoinOrg, setShowJoinOrg] = useState(false);
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -179,85 +181,125 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
         </div>
 
         {/* Auth Form */}
-        <Card variant="elevated" className="w-full max-w-md mx-auto bg-white/95 backdrop-blur-sm border-white/20">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">
-              {isSignUp ? "Join TeamSpark" : "Welcome Back"}
-            </CardTitle>
-            <CardDescription>
-              {isSignUp 
-                ? "Create your account to start boosting productivity" 
-                : "Sign in to your account to continue"
-              }
-            </CardDescription>
-          </CardHeader>
-          
-          <CardContent>
-            <form onSubmit={handleAuth} className="space-y-4">
-              {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="Enter your full name"
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    required={isSignUp}
-                  />
+        <div className="space-y-4">
+          {showJoinOrg ? (
+            <JoinOrganization onJoinSuccess={() => window.location.reload()} />
+          ) : (
+            <Card variant="elevated" className="w-full max-w-md mx-auto bg-white/95 backdrop-blur-sm border-white/20">
+              <CardHeader className="text-center">
+                <CardTitle className="text-2xl">
+                  {isSignUp ? "Join TeamSpark" : "Welcome Back"}
+                </CardTitle>
+                <CardDescription>
+                  {isSignUp 
+                    ? "Create your account to start boosting productivity" 
+                    : "Sign in to your account to continue"
+                  }
+                </CardDescription>
+              </CardHeader>
+              
+              <CardContent>
+                <form onSubmit={handleAuth} className="space-y-4">
+                  {isSignUp && (
+                    <div className="space-y-2">
+                      <Label htmlFor="fullName">Full Name</Label>
+                      <Input
+                        id="fullName"
+                        type="text"
+                        placeholder="Enter your full name"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required={isSignUp}
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="Enter your email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                  
+                  <Button
+                    type="submit"
+                    variant="hero"
+                    size="lg"
+                    className="w-full"
+                    disabled={loading}
+                  >
+                    {loading && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isSignUp ? "Create Account" : "Sign In"}
+                  </Button>
+                </form>
+                
+                <div className="mt-6 text-center space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUp(!isSignUp)}
+                    className="text-sm text-primary hover:underline block"
+                  >
+                    {isSignUp 
+                      ? "Already have an account? Sign in" 
+                      : "Don't have an account? Sign up"
+                    }
+                  </button>
+                  
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t border-muted" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-muted-foreground">Or</span>
+                    </div>
+                  </div>
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowJoinOrg(true)}
+                    className="w-full"
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Join with Invitation Code
+                  </Button>
                 </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              
+              </CardContent>
+            </Card>
+          )}
+          
+          {showJoinOrg && (
+            <div className="text-center">
               <Button
-                type="submit"
-                variant="hero"
-                size="lg"
-                className="w-full"
-                disabled={loading}
-              >
-                {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-                {isSignUp ? "Create Account" : "Sign In"}
-              </Button>
-            </form>
-            
-            <div className="mt-6 text-center">
-              <button
                 type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-primary hover:underline"
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowJoinOrg(false)}
+                className="text-white hover:text-white/80"
               >
-                {isSignUp 
-                  ? "Already have an account? Sign in" 
-                  : "Don't have an account? Sign up"
-                }
-              </button>
+                ← Back to Sign In
+              </Button>
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
     </div>
   );

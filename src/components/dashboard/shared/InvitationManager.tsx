@@ -105,7 +105,7 @@ export function InvitationManager({ organizationId, userRole }: InvitationManage
       
       toast({
         title: "Invitation created",
-        description: "Invitation link has been generated successfully",
+        description: "Invitation code has been generated successfully",
       });
     } catch (error) {
       console.error('Error creating invitation:', error);
@@ -119,12 +119,11 @@ export function InvitationManager({ organizationId, userRole }: InvitationManage
     }
   };
 
-  const copyInviteLink = (code: string) => {
-    const inviteUrl = `${window.location.origin}/invite/${code}`;
-    navigator.clipboard.writeText(inviteUrl);
+  const copyInviteCode = (code: string) => {
+    navigator.clipboard.writeText(code);
     toast({
       title: "Copied!",
-      description: "Invitation link copied to clipboard",
+      description: "Invitation code copied to clipboard",
     });
   };
 
@@ -217,7 +216,7 @@ export function InvitationManager({ organizationId, userRole }: InvitationManage
               <DialogHeader>
                 <DialogTitle>Create Team Invitation</DialogTitle>
                 <DialogDescription>
-                  Generate an invitation link for new team members
+                  Generate an invitation code for new team members
                 </DialogDescription>
               </DialogHeader>
               
@@ -251,7 +250,7 @@ export function InvitationManager({ organizationId, userRole }: InvitationManage
                     onChange={(e) => setNewInvite(prev => ({ ...prev, email: e.target.value }))}
                   />
                   <p className="text-xs text-muted-foreground mt-1">
-                    Leave empty for a general invitation link
+                    Leave empty for a general invitation code
                   </p>
                 </div>
                 
@@ -279,7 +278,6 @@ export function InvitationManager({ organizationId, userRole }: InvitationManage
         ) : (
           invitations.map((invite) => {
             const status = getInviteStatus(invite);
-            const inviteUrl = `${window.location.origin}/invite/${invite.code}`;
             
             return (
               <Card key={invite.id} variant="interactive" className="p-4">
@@ -310,22 +308,28 @@ export function InvitationManager({ organizationId, userRole }: InvitationManage
                     </div>
                     
                     {status === "active" && (
-                      <div className="mt-2 p-2 bg-muted rounded text-xs font-mono break-all">
-                        {inviteUrl}
+                      <div className="mt-2 p-3 bg-muted rounded border-2 border-dashed border-primary/30">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-muted-foreground mb-1">Invitation Code:</p>
+                            <code className="text-sm font-mono text-primary font-semibold">
+                              {invite.code}
+                            </code>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => copyInviteCode(invite.code)}
+                            className="shrink-0"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </Button>
+                        </div>
                       </div>
                     )}
                   </div>
                   
                   <div className="flex gap-1">
-                    {status === "active" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => copyInviteLink(invite.code)}
-                      >
-                        <Copy className="w-3 h-3" />
-                      </Button>
-                    )}
                     <Button
                       variant="ghost"
                       size="sm"
