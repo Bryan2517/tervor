@@ -1071,6 +1071,14 @@ export type Database = {
         }
         Returns: undefined
       }
+      can_manage_roles: {
+        Args: {
+          p_manager_role: Database["public"]["Enums"]["user_role"]
+          p_org: string
+          p_target_role: Database["public"]["Enums"]["user_role"]
+        }
+        Returns: boolean
+      }
       claim_org_invite: {
         Args: { p_code: string }
         Returns: {
