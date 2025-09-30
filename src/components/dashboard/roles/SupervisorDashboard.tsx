@@ -74,7 +74,7 @@ export function SupervisorDashboard({ organization, onOrganizationChange, onOrga
       const [employeesData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('id, role')
+          .select('user_id, role')
           .eq('organization_id', organization.id),
         supabase
           .from('tasks')

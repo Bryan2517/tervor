@@ -52,7 +52,7 @@ export function Analytics() {
       const [membersData, projectsData, tasksData] = await Promise.all([
         supabase
           .from("organization_members")
-          .select("id")
+          .select("user_id")
           .eq("organization_id", orgData.organization_id),
         supabase
           .from("projects")
