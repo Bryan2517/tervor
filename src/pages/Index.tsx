@@ -65,6 +65,38 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Listen for organization updates (like logo changes)
+  useEffect(() => {
+    if (!selectedOrganization) return;
+
+    const channel = supabase
+      .channel(`org-${selectedOrganization.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'organizations',
+          filter: `id=eq.${selectedOrganization.id}`,
+        },
+        (payload) => {
+          // Update the organization with new data (like logo_url)
+          setSelectedOrganization((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              ...payload.new,
+            } as OrganizationWithRole;
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedOrganization?.id]);
+
   const handleAuthSuccess = (session: Session, user: User) => {
     setSession(session);
     setUser(user);
