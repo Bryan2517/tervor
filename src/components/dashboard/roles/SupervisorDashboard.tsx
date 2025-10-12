@@ -142,10 +142,12 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="outline">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Manage Team
-              </Button>
+              <Link to="/supervisor/manage-team">
+                <Button variant="outline">
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Manage Team
+                </Button>
+              </Link>
               <Button variant="ghost" onClick={onLogout}>
                 Logout
               </Button>
@@ -236,21 +238,29 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Target className="w-6 h-6" />
-                    <span>Task Assignment</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/task-assignment">
+                      <Target className="w-6 h-6" />
+                      <span>Task Assignment</span>
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <TrendingUp className="w-6 h-6" />
-                    <span>Progress Tracking</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/progress-tracking">
+                      <TrendingUp className="w-6 h-6" />
+                      <span>Progress Tracking</span>
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <Clock className="w-6 h-6" />
-                    <span>Time Management</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/time-management">
+                      <Clock className="w-6 h-6" />
+                      <span>Time Management</span>
+                    </Link>
                   </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2">
-                    <CheckCircle2 className="w-6 h-6" />
-                    <span>Quality Review</span>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/quality-review">
+                      <CheckCircle2 className="w-6 h-6" />
+                      <span>Quality Review</span>
+                    </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/shop">
