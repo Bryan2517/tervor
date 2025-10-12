@@ -22,6 +22,7 @@ export function OrganizationSettings() {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -54,6 +55,52 @@ export function OrganizationSettings() {
       console.error("Error fetching organization:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!organization || !event.target.files || event.target.files.length === 0) return;
+
+    const file = event.target.files[0];
+    setUploading(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${organization.id}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('org-logos')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('org-logos')
+        .getPublicUrl(filePath);
+
+      const { error: updateError } = await supabase
+        .from('organizations')
+        .update({ logo_url: publicUrl })
+        .eq('id', organization.id);
+
+      if (updateError) throw updateError;
+
+      setOrganization({ ...organization, logo_url: publicUrl });
+      
+      toast({
+        title: "Logo uploaded",
+        description: "Organization logo updated successfully",
+      });
+    } catch (error) {
+      console.error("Error uploading logo:", error);
+      toast({
+        title: "Error",
+        description: "Failed to upload logo",
+        variant: "destructive",
+      });
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -155,9 +202,17 @@ export function OrganizationSettings() {
                     <Building2 className="w-8 h-8 text-muted-foreground" />
                   )}
                 </div>
-                <Button variant="outline">
-                  <Upload className="w-4 h-4 mr-2" />
-                  Upload Logo
+                <Button variant="outline" asChild disabled={uploading}>
+                  <label className="cursor-pointer">
+                    <Upload className="w-4 h-4 mr-2" />
+                    {uploading ? "Uploading..." : "Upload Logo"}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                    />
+                  </label>
                 </Button>
               </div>
             </div>
