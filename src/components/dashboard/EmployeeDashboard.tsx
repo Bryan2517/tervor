@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 import { OrganizationSelector } from "../org/OrganizationSelector";
+import { OnlinePresence } from "./shared/OnlinePresence";
 import { SimpleOrgSwitch } from "./shared/SimpleOrgSwitch";
 import { SmartJoinTeamCard } from "./shared/SmartJoinTeamCard";
 import { cn } from "@/lib/utils";
@@ -59,14 +61,14 @@ interface EmployeeDashboardProps {
   onLogout: () => void;
 }
 
-const statusColors = {
+const statusColors: Record<TaskStatus, string> = {
   todo: "bg-muted",
   in_progress: "bg-primary",
   blocked: "bg-destructive",
   done: "bg-success",
 };
 
-const priorityColors = {
+const priorityColors: Record<TaskPriority, string> = {
   low: "border-l-priority-low",
   medium: "border-l-priority-medium", 
   high: "border-l-priority-high",
@@ -80,7 +82,7 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
     dueToday: 0,
     overdue: 0,
     completed: 0,
-    points: 850,
+    points: 0,
     rank: 3,
     streak: 5,
   });
@@ -93,7 +95,11 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
 
   const fetchUserTasks = async () => {
     try {
-      const { data: user } = await supabase.auth.getUser();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.error("No user found");
+        return;
+      }
       
       const { data, error } = await supabase
         .from("tasks")
@@ -102,7 +108,7 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
           project:projects!inner(name, organization_id),
           phase:phases(name)
         `)
-        .eq("assignee_id", user.user?.id)
+        .eq("assignee_id", user.id)
         .eq("project.organization_id", organization.id)
         .neq("status", "done")
         .order("priority", { ascending: false })
@@ -117,17 +123,19 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
 
   const fetchUserStats = async () => {
     try {
-      // This would typically fetch from your points_ledger and other tables
-      // For now, using mock data
+      // Calculate stats based on current tasks
       const ongoing = tasks.filter(t => t.status === "in_progress").length;
       const dueToday = tasks.filter(t => {
         if (!t.due_date) return false;
-        const today = new Date().toDateString();
-        return new Date(t.due_date).toDateString() === today;
+        const today = new Date();
+        const dueDate = new Date(t.due_date);
+        return dueDate.toDateString() === today.toDateString() && t.status !== "done";
       }).length;
       const overdue = tasks.filter(t => {
         if (!t.due_date) return false;
-        return new Date(t.due_date) < new Date() && t.status !== "done";
+        const dueDate = new Date(t.due_date);
+        const today = new Date();
+        return dueDate < today && t.status !== "done";
       }).length;
 
       setStats(prev => ({
@@ -143,6 +151,32 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
     }
   };
 
+  // Update stats when tasks change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const ongoing = tasks.filter(t => t.status === "in_progress").length;
+      const dueToday = tasks.filter(t => {
+        if (!t.due_date) return false;
+        const today = new Date();
+        const dueDate = new Date(t.due_date);
+        return dueDate.toDateString() === today.toDateString() && t.status !== "done";
+      }).length;
+      const overdue = tasks.filter(t => {
+        if (!t.due_date) return false;
+        const dueDate = new Date(t.due_date);
+        const today = new Date();
+        return dueDate < today && t.status !== "done";
+      }).length;
+
+      setStats(prev => ({
+        ...prev,
+        ongoing,
+        dueToday,
+        overdue,
+      }));
+    }
+  }, [tasks]);
+
   const handleTaskAction = async (taskId: string, action: "start" | "pause" | "complete") => {
     try {
       let newStatus: TaskStatus;
@@ -156,6 +190,8 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
         case "complete":
           newStatus = "done";
           break;
+        default:
+          newStatus = "todo";
       }
 
       const { error } = await supabase
@@ -168,19 +204,21 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
 
       if (error) throw error;
 
-      // Also create time log entry
-      if (action === "start" || action === "pause" || action === "complete") {
+      // Create time log entry
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
         await supabase
           .from("time_logs")
           .insert({
             task_id: taskId,
-            user_id: (await supabase.auth.getUser()).data.user?.id,
+            user_id: user.id,
             action: action === "complete" ? "complete" : action,
+            timestamp: new Date().toISOString()
           });
       }
 
+      // Refresh data
       await fetchUserTasks();
-      await fetchUserStats();
     } catch (error) {
       console.error("Error updating task:", error);
     }
@@ -260,13 +298,12 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
             </div>
             
             <div className="flex items-center gap-4">
-              <Card variant="points" padding="sm" className="flex items-center gap-2">
-                <Coins className="w-5 h-5" />
-                <span className="font-semibold">{stats.points}</span>
-              </Card>
-              <Button variant="outline" asChild>
-                <Link to="/employee/shop">Shop</Link>
-              </Button>
+              <Link to="/employee/shop">
+                <Card variant="points" padding="sm" className="flex items-center gap-2">
+                  <Coins className="w-5 h-5" />
+                  <span className="font-semibold">{stats.points}</span>
+                </Card>
+              </Link>
               <SimpleOrgSwitch 
                 currentOrganization={organization}
                 onOrganizationChange={onOrganizationChange}
@@ -370,7 +407,7 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
                     <Card
                       key={task.id}
                       variant="interactive"
-                      className={cn("border-l-4", priorityColors[task.priority])}
+                      className={cn("border-l-4", priorityColors[task.priority as TaskPriority] || priorityColors.medium)}
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-4">
@@ -379,12 +416,12 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
                               <h4 className="font-medium">{task.title}</h4>
                               <Badge 
                                 variant="outline" 
-                                className={cn("text-xs", statusColors[task.status])}
+                                className={cn("text-xs", statusColors[task.status as TaskStatus] || statusColors.todo)}
                               >
                                 {task.status.replace("_", " ")}
                               </Badge>
                               {task.priority === "urgent" && (
-                                <Badge variant="destructive" className="text-xs animate-pulse">
+                                <Badge variant="destructive" className="text-xs">
                                   <Flag className="w-3 h-3 mr-1" />
                                   Urgent
                                 </Badge>
@@ -438,48 +475,9 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
           {/* Sidebar */}
           <div className="space-y-6">
             {/* Team Snapshot */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Team Snapshot
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">John Doe</p>
-                    <p className="text-xs text-muted-foreground">Working on API Integration</p>
-                  </div>
-                  <div className="w-2 h-2 bg-success rounded-full"></div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>AS</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Alice Smith</p>
-                    <p className="text-xs text-muted-foreground">On break</p>
-                  </div>
-                  <div className="w-2 h-2 bg-warning rounded-full"></div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>MJ</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Mike Johnson</p>
-                    <p className="text-xs text-muted-foreground">Offline</p>
-                  </div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              <OnlinePresence organizationId={organization.id} />
+            </div>
 
             {/* Points & Rewards */}
             <Card variant="points">
@@ -506,10 +504,12 @@ export function EmployeeDashboard({ organization, onOrganizationChange, onTeamJo
                   </div>
                 </div>
 
-                <Button variant="accent" className="w-full">
-                  <ArrowRight className="w-4 h-4" />
-                  Visit Shop
-                </Button>
+                <Link to="/employee/shop">
+                  <Button variant="accent" className="w-full">
+                    <ArrowRight className="w-4 h-4" />
+                    Visit Shop
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           </div>

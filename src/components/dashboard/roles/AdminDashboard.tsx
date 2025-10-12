@@ -54,6 +54,7 @@ interface AdminStats {
   activeTasks: number;
   teamProductivity: number;
   totalPoints: number;
+  points: number;
 }
 
 export function AdminDashboard({ organization, onOrganizationChange, onOrganizationJoined, onLogout }: AdminDashboardProps) {
@@ -63,6 +64,7 @@ export function AdminDashboard({ organization, onOrganizationChange, onOrganizat
     activeTasks: 0,
     teamProductivity: 0,
     totalPoints: 0,
+    points: 0,
   });
   const [loading, setLoading] = useState(true);
   const [activeModal, setActiveModal] = useState<'user' | 'project' | 'role' | 'performance' | null>(null);
@@ -126,6 +128,7 @@ export function AdminDashboard({ organization, onOrganizationChange, onOrganizat
         activeTasks,
         teamProductivity,
         totalPoints,
+        points: stats.points, // Keep current points
       });
     } catch (error) {
       console.error('Error fetching admin stats:', error);
@@ -171,9 +174,12 @@ export function AdminDashboard({ organization, onOrganizationChange, onOrganizat
                   Settings
                 </Button>
               </Link>
-              <Button variant="ghost" onClick={onLogout}>
-                Logout
-              </Button>
+              <Link to="/admin/shop">
+              <Card variant="points" padding="sm" className="flex items-center gap-2">
+                <Coins className="w-5 h-5" />
+                <span className="font-semibold">{stats.points}</span>
+              </Card>
+              </Link>
         <SimpleOrgSwitch 
           currentOrganization={organization}
           onOrganizationChange={onOrganizationChange}

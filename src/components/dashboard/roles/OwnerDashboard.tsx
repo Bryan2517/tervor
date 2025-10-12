@@ -54,7 +54,7 @@ interface OrgStats {
 
 export function OwnerDashboard({ organization, onOrganizationChange, onOrganizationJoined, onLogout }: OwnerDashboardProps) {
   const [stats, setStats] = useState<OrgStats>({
-    totalMembers: 0,
+    totalMembers: 7,
     activeProjects: 0,
     totalTasks: 0,
     completionRate: 0,
@@ -244,7 +244,7 @@ export function OwnerDashboard({ organization, onOrganizationChange, onOrganizat
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/owner/projects">
                       <Building2 className="w-6 h-6" />
