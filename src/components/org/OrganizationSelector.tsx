@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building, Users, Crown, ShieldCheck, UserCheck, UserIcon, Plus, Key } from "lucide-react";
+import { Building, Users, Crown, ShieldCheck, UserCheck, UserIcon, Plus, Key, LogOut } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -201,6 +201,22 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await supabase.auth.signOut();
+      toast({
+        title: "Logged out",
+        description: "You have been successfully logged out.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to logout",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -302,6 +318,15 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
                 </div>
               </DialogContent>
             </Dialog>
+
+            <Button 
+              variant="ghost" 
+              className="w-full text-muted-foreground hover:text-destructive"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
           </CardContent>
         </Card>
       </div>
