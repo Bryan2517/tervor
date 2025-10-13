@@ -159,6 +159,7 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
       <div className="container mx-auto px-4 py-6">
         {/* Supervisor Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <Link to="/supervisor/direct-reports" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -172,7 +173,9 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               </div>
             </CardContent>
           </Card>
+          </Link>
 
+          <Link to="/supervisor/task-overseeing" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -186,7 +189,9 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               </div>
             </CardContent>
           </Card>
+          </Link>
 
+          <Link to="/supervisor/complete-today" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -200,6 +205,7 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               </div>
             </CardContent>
           </Card>
+          </Link>
 
           <Card variant="interactive">
             <CardContent className="p-6">
@@ -239,21 +245,9 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/direct-reports">
-                      <Users className="w-6 h-6" />
-                      <span>Direct Reports</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/task-assignment">
                       <Target className="w-6 h-6" />
                       <span>Task Assignment</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/task-overseeing">
-                      <Eye className="w-6 h-6" />
-                      <span>Task Overseeing</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
@@ -272,12 +266,6 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
                     <Link to="/supervisor/quality-review">
                       <CheckCircle2 className="w-6 h-6" />
                       <span>Quality Review</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/complete-today">
-                      <Calendar className="w-6 h-6" />
-                      <span>Complete Today</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
