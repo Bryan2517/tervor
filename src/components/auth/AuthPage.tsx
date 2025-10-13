@@ -262,16 +262,16 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                     }
                   </button>
                   
-                  {/* <div className="relative">
+                  <div className="relative">
                     <div className="absolute inset-0 flex items-center">
                       <span className="w-full border-t border-muted" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
                       <span className="bg-white px-2 text-muted-foreground">Or</span>
                     </div>
-                  </div> */}
+                  </div>
                   
-                  {/* <Button
+                  <Button
                     type="button"
                     variant="outline"
                     size="sm"
@@ -280,7 +280,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                   >
                     <Users className="w-4 h-4 mr-2" />
                     Join with Invitation Code
-                  </Button> */}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
