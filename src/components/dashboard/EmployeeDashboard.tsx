@@ -23,7 +23,8 @@ import {
   Paperclip,
   ArrowRight,
   Star,
-  Zap
+  Zap,
+  LogOut
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
@@ -262,7 +263,7 @@ export function EmployeeDashboard({ organization, onLogout }: EmployeeDashboardP
               <Button variant="outline" asChild>
                 <Link to="/employee/shop">Shop</Link>
               </Button>
-              <Button variant="ghost" onClick={onLogout}>
+              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>

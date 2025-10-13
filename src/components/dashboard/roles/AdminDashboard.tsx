@@ -17,7 +17,8 @@ import {
   Calendar,
   Clock,
   CheckCircle2,
-  Gift
+  Gift,
+  LogOut
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -146,7 +147,7 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
                   Settings
                 </Button>
               </Link>
-              <Button variant="ghost" onClick={onLogout}>
+              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>

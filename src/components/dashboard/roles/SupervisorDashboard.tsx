@@ -17,7 +17,8 @@ import {
   UserPlus,
   AlertTriangle,
   Gift,
-  Coins
+  Coins,
+  LogOut
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -148,7 +149,7 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
                   Manage Team
                 </Button>
               </Link>
-              <Button variant="ghost" onClick={onLogout}>
+              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>
