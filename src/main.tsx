@@ -20,6 +20,14 @@ import { QualityReview } from "./pages/admin/QualityReview";
 import { ShopManagement as AdminShopManagement } from "./pages/admin/ShopManagement";
 import { Settings as AdminSettings } from "./pages/admin/Settings";
 import { Shop } from "./pages/shared/Shop";
+import SupervisorManageTeam from "./pages/supervisor/ManageTeam";
+import SupervisorTaskAssignment from "./pages/supervisor/TaskAssignment";
+import SupervisorProgressTracking from "./pages/supervisor/ProgressTracking";
+import SupervisorTimeManagement from "./pages/supervisor/TimeManagement";
+import SupervisorQualityReview from "./pages/supervisor/QualityReview";
+import SupervisorDirectReports from "./pages/supervisor/DirectReports";
+import SupervisorTaskOverseeing from "./pages/supervisor/TaskOverseeing";
+import SupervisorCompleteToday from "./pages/supervisor/CompleteToday";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const router = createBrowserRouter([
@@ -106,6 +114,38 @@ const router = createBrowserRouter([
       {
         path: "admin/settings",
         element: <AdminSettings />,
+      },
+      {
+        path: "supervisor/manage-team",
+        element: <SupervisorManageTeam />,
+      },
+      {
+        path: "supervisor/task-assignment",
+        element: <SupervisorTaskAssignment />,
+      },
+      {
+        path: "supervisor/progress-tracking",
+        element: <SupervisorProgressTracking />,
+      },
+      {
+        path: "supervisor/time-management",
+        element: <SupervisorTimeManagement />,
+      },
+      {
+        path: "supervisor/quality-review",
+        element: <SupervisorQualityReview />,
+      },
+      {
+        path: "supervisor/direct-reports",
+        element: <SupervisorDirectReports />,
+      },
+      {
+        path: "supervisor/task-overseeing",
+        element: <SupervisorTaskOverseeing />,
+      },
+      {
+        path: "supervisor/complete-today",
+        element: <SupervisorCompleteToday />,
       },
     ],
   },

@@ -239,9 +239,21 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/direct-reports">
+                      <Users className="w-6 h-6" />
+                      <span>Direct Reports</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/task-assignment">
                       <Target className="w-6 h-6" />
                       <span>Task Assignment</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/task-overseeing">
+                      <Eye className="w-6 h-6" />
+                      <span>Task Overseeing</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
@@ -260,6 +272,12 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
                     <Link to="/supervisor/quality-review">
                       <CheckCircle2 className="w-6 h-6" />
                       <span>Quality Review</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/complete-today">
+                      <Calendar className="w-6 h-6" />
+                      <span>Complete Today</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
