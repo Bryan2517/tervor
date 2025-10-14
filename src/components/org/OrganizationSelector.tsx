@@ -333,25 +333,15 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
     );
   }
 
-  if (organizations.length === 1) {
-    // Auto-select if only one organization
-    handleSelectOrganization(organizations[0]);
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Select Organization</h1>
-          <p className="text-muted-foreground">Choose which organization you'd like to work with today</p>
+          <h1 className="text-3xl font-bold mb-2">My Organizations</h1>
+          <p className="text-muted-foreground">Click on an organization to clock in and access your dashboard</p>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid gap-4 mb-6">
           {organizations.map((org) => {
             const RoleIcon = roleIcons[org.role];
             
@@ -391,6 +381,97 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
               </Card>
             );
           })}
+        </div>
+
+        <div className="flex gap-3">
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex-1">
+                <Plus className="w-4 h-4 mr-2" />
+                Create Organization
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create New Organization</DialogTitle>
+                <DialogDescription>
+                  Create your own organization and become the owner.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="org-name">Organization Name</Label>
+                  <Input
+                    id="org-name"
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    placeholder="Enter organization name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="org-description">Description (Optional)</Label>
+                  <Textarea
+                    id="org-description"
+                    value={orgDescription}
+                    onChange={(e) => setOrgDescription(e.target.value)}
+                    placeholder="Describe your organization"
+                    rows={3}
+                  />
+                </div>
+                <Button 
+                  onClick={handleCreateOrganization} 
+                  disabled={creating || !orgName.trim()}
+                  className="w-full"
+                >
+                  {creating ? "Creating..." : "Create Organization"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={joinDialogOpen} onOpenChange={setJoinDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="flex-1">
+                <Key className="w-4 h-4 mr-2" />
+                Join with Invite Code
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Join Organization</DialogTitle>
+                <DialogDescription>
+                  Enter the invite code provided by your organization admin.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="invite-code">Invite Code</Label>
+                  <Input
+                    id="invite-code"
+                    value={inviteCode}
+                    onChange={(e) => setInviteCode(e.target.value)}
+                    placeholder="Enter invite code"
+                  />
+                </div>
+                <Button 
+                  onClick={handleJoinOrganization} 
+                  disabled={joining || !inviteCode.trim()}
+                  className="w-full"
+                >
+                  {joining ? "Joining..." : "Join Organization"}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Button 
+            variant="ghost" 
+            className="text-muted-foreground hover:text-destructive"
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
         </div>
       </div>
     </div>
