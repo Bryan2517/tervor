@@ -102,25 +102,13 @@ const Index = () => {
     setUser(user);
   };
 
-  const handleOrganizationSelect = async (org: OrganizationWithRole) => {
-    // Auto clock in when selecting organization
-    if (user) {
-      await supabase.rpc('create_daily_checkin', {
-        p_org_id: org.id,
-        p_user_id: user.id,
-        p_source: 'web'
-      });
-    }
+  const handleOrganizationSelect = (org: OrganizationWithRole) => {
+    // Just set the organization, clock in will be handled by confirmation dialog
     setSelectedOrganization(org);
   };
 
-  const handleClockOut = async () => {
-    if (selectedOrganization && user) {
-      await supabase.rpc('clock_out_from_org', {
-        p_org_id: selectedOrganization.id,
-        p_user_id: user.id
-      });
-    }
+  const handleClockOut = () => {
+    // Just clear organization, clock out will be handled by confirmation dialog
     setSelectedOrganization(null);
   };
 

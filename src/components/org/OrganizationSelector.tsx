@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -43,11 +44,14 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [joinDialogOpen, setJoinDialogOpen] = useState(false);
+  const [clockInDialogOpen, setClockInDialogOpen] = useState(false);
+  const [selectedOrgForClockIn, setSelectedOrgForClockIn] = useState<OrganizationWithRole | null>(null);
   const [orgName, setOrgName] = useState("");
   const [orgDescription, setOrgDescription] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [clockingIn, setClockingIn] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -81,20 +85,58 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
     }
   };
 
-  const handleSelectOrganization = async (org: OrganizationWithRole) => {
-    // Update last_selected for this organization
-    await supabase
-      .from("organization_members")
-      .update({ last_selected: false })
-      .eq("user_id", (await supabase.auth.getUser()).data.user?.id);
+  const handleSelectOrganization = (org: OrganizationWithRole) => {
+    // Show clock in confirmation dialog
+    setSelectedOrgForClockIn(org);
+    setClockInDialogOpen(true);
+  };
 
-    await supabase
-      .from("organization_members")
-      .update({ last_selected: true })
-      .eq("user_id", (await supabase.auth.getUser()).data.user?.id)
-      .eq("organization_id", org.id);
+  const handleConfirmClockIn = async () => {
+    if (!selectedOrgForClockIn) return;
+    
+    setClockingIn(true);
+    try {
+      const user = (await supabase.auth.getUser()).data.user;
+      if (!user) throw new Error("User not found");
 
-    onOrganizationSelect(org);
+      // Clock in
+      const { error: clockInError } = await supabase.rpc('create_daily_checkin', {
+        p_org_id: selectedOrgForClockIn.id,
+        p_user_id: user.id,
+        p_source: 'web'
+      });
+
+      if (clockInError) throw clockInError;
+
+      // Update last_selected for this organization
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: false })
+        .eq("user_id", user.id);
+
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: true })
+        .eq("user_id", user.id)
+        .eq("organization_id", selectedOrgForClockIn.id);
+
+      toast({
+        title: "Clocked In",
+        description: `Successfully clocked in to ${selectedOrgForClockIn.name}`,
+      });
+
+      onOrganizationSelect(selectedOrgForClockIn);
+      setClockInDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to clock in",
+        variant: "destructive",
+      });
+    } finally {
+      setClockingIn(false);
+      setSelectedOrgForClockIn(null);
+    }
   };
 
   const handleCreateOrganization = async () => {
@@ -473,6 +515,25 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
             Logout
           </Button>
         </div>
+
+        <AlertDialog open={clockInDialogOpen} onOpenChange={setClockInDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clock In</AlertDialogTitle>
+              <AlertDialogDescription>
+                Do you want to clock in to <strong>{selectedOrgForClockIn?.name}</strong>? This will start tracking your time for this organization.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setSelectedOrgForClockIn(null)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmClockIn} disabled={clockingIn}>
+                {clockingIn ? "Clocking In..." : "Clock In"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

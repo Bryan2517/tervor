@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
+import { ClockOutButton } from "../shared/ClockOutButton";
 import { 
   Crown, 
   Building2, 
@@ -129,9 +130,11 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
                   Organization Settings
                 </Link>
               </Button>
-              <Button variant="default" onClick={onClockOut}>
-                Clock Out
-              </Button>
+              <ClockOutButton 
+                organizationId={organization.id}
+                organizationName={organization.name}
+                onClockOut={onClockOut}
+              />
               <Button variant="ghost" onClick={onLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout

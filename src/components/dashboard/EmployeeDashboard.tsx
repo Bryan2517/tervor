@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
+import { OnlinePresence } from "./shared/OnlinePresence";
+import { InvitationManager } from "./shared/InvitationManager";
+import { ClockOutButton } from "./shared/ClockOutButton";
 import { cn } from "@/lib/utils";
 import { 
   Calendar, 
@@ -264,9 +267,11 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
               <Button variant="outline" asChild>
                 <Link to="/employee/shop">Shop</Link>
               </Button>
-              <Button variant="default" onClick={onClockOut}>
-                Clock Out
-              </Button>
+              <ClockOutButton 
+                organizationId={organization.id}
+                organizationName={organization.name}
+                onClockOut={onClockOut}
+              />
               <Button variant="ghost" onClick={onLogout}>
                 <LogOut className="w-4 h-4 mr-2" />
                 Logout
