@@ -17,19 +17,20 @@ interface OrganizationWithRole {
 interface RoleDashboardProps {
   organization: OrganizationWithRole;
   onLogout: () => void;
+  onClockOut: () => void;
 }
 
-export function RoleDashboard({ organization, onLogout }: RoleDashboardProps) {
+export function RoleDashboard({ organization, onLogout, onClockOut }: RoleDashboardProps) {
   // Render the appropriate dashboard based on user role
   switch (organization.role) {
     case "owner":
-      return <OwnerDashboard organization={organization} onLogout={onLogout} />;
+      return <OwnerDashboard organization={organization} onLogout={onLogout} onClockOut={onClockOut} />;
     case "admin":
-      return <AdminDashboard organization={organization} onLogout={onLogout} />;
+      return <AdminDashboard organization={organization} onLogout={onLogout} onClockOut={onClockOut} />;
     case "supervisor":
-      return <SupervisorDashboard organization={organization} onLogout={onLogout} />;
+      return <SupervisorDashboard organization={organization} onLogout={onLogout} onClockOut={onClockOut} />;
     case "employee":
     default:
-      return <EmployeeDashboard organization={organization} onLogout={onLogout} />;
+      return <EmployeeDashboard organization={organization} onLogout={onLogout} onClockOut={onClockOut} />;
   }
 }

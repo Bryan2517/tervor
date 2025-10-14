@@ -53,6 +53,7 @@ interface Task extends Tables<"tasks"> {
 interface EmployeeDashboardProps {
   organization: OrganizationWithRole;
   onLogout: () => void;
+  onClockOut: () => void;
 }
 
 const statusColors = {
@@ -69,7 +70,7 @@ const priorityColors = {
   urgent: "border-l-priority-urgent",
 };
 
-export function EmployeeDashboard({ organization, onLogout }: EmployeeDashboardProps) {
+export function EmployeeDashboard({ organization, onLogout, onClockOut }: EmployeeDashboardProps) {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState({
     ongoing: 0,
@@ -263,7 +264,11 @@ export function EmployeeDashboard({ organization, onLogout }: EmployeeDashboardP
               <Button variant="outline" asChild>
                 <Link to="/employee/shop">Shop</Link>
               </Button>
-              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
+              <Button variant="default" onClick={onClockOut}>
+                Clock Out
+              </Button>
+              <Button variant="ghost" onClick={onLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>

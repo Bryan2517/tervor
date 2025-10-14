@@ -32,6 +32,7 @@ interface Organization {
 interface OwnerDashboardProps {
   organization: Organization;
   onLogout: () => void;
+  onClockOut: () => void;
 }
 
 interface OrgStats {
@@ -41,7 +42,7 @@ interface OrgStats {
   completionRate: number;
 }
 
-export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) {
+export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDashboardProps) {
   const [stats, setStats] = useState<OrgStats>({
     totalMembers: 0,
     activeProjects: 0,
@@ -128,7 +129,11 @@ export function OwnerDashboard({ organization, onLogout }: OwnerDashboardProps) 
                   Organization Settings
                 </Link>
               </Button>
-              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
+              <Button variant="default" onClick={onClockOut}>
+                Clock Out
+              </Button>
+              <Button variant="ghost" onClick={onLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>

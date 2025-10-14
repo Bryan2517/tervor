@@ -108,6 +108,57 @@ export type Database = {
           },
         ]
       }
+      attendance_checkins: {
+        Row: {
+          clock_in_at: string
+          clock_out_at: string | null
+          created_at: string | null
+          id: string
+          local_date: string | null
+          org_id: string
+          source: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          clock_in_at?: string
+          clock_out_at?: string | null
+          created_at?: string | null
+          id?: string
+          local_date?: string | null
+          org_id: string
+          source?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          clock_in_at?: string
+          clock_out_at?: string | null
+          created_at?: string | null
+          id?: string
+          local_date?: string | null
+          org_id?: string
+          source?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_checkins_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "my_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_checkins_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comments: {
         Row: {
           content: string
@@ -1071,6 +1122,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      calculate_local_date: {
+        Args: { clock_in_time: string }
+        Returns: string
+      }
       can_manage_roles: {
         Args: {
           p_manager_role: Database["public"]["Enums"]["user_role"]
@@ -1085,6 +1140,24 @@ export type Database = {
           organization_id: string
           role: Database["public"]["Enums"]["user_role"]
         }[]
+      }
+      clock_out_from_org: {
+        Args: { p_org_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      create_daily_checkin: {
+        Args: { p_org_id: string; p_source?: string; p_user_id: string }
+        Returns: {
+          clock_in_at: string
+          clock_out_at: string | null
+          created_at: string | null
+          id: string
+          local_date: string | null
+          org_id: string
+          source: string | null
+          updated_at: string | null
+          user_id: string
+        }
       }
       create_org_with_owner: {
         Args: { p_description?: string; p_name: string }
@@ -1122,6 +1195,10 @@ export type Database = {
       share_org: {
         Args: { p_user_a: string; p_user_b: string }
         Returns: boolean
+      }
+      switch_organization: {
+        Args: { p_org_id: string; p_user_id: string }
+        Returns: undefined
       }
       transfer_ownership: {
         Args: { p_new_owner: string; p_org: string }

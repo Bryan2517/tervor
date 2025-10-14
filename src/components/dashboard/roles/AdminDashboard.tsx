@@ -33,6 +33,7 @@ interface Organization {
 interface AdminDashboardProps {
   organization: Organization;
   onLogout: () => void;
+  onClockOut: () => void;
 }
 
 interface AdminStats {
@@ -43,7 +44,7 @@ interface AdminStats {
   totalPoints: number;
 }
 
-export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) {
+export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDashboardProps) {
   const [stats, setStats] = useState<AdminStats>({
     teamMembers: 0,
     managedProjects: 0,
@@ -147,7 +148,11 @@ export function AdminDashboard({ organization, onLogout }: AdminDashboardProps) 
                   Settings
                 </Button>
               </Link>
-              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
+              <Button variant="default" onClick={onClockOut}>
+                Clock Out
+              </Button>
+              <Button variant="ghost" onClick={onLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>

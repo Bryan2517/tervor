@@ -33,6 +33,7 @@ interface Organization {
 interface SupervisorDashboardProps {
   organization: Organization;
   onLogout: () => void;
+  onClockOut: () => void;
 }
 
 interface SupervisorStats {
@@ -43,7 +44,7 @@ interface SupervisorStats {
   totalPoints: number;
 }
 
-export function SupervisorDashboard({ organization, onLogout }: SupervisorDashboardProps) {
+export function SupervisorDashboard({ organization, onLogout, onClockOut }: SupervisorDashboardProps) {
   const [stats, setStats] = useState<SupervisorStats>({
     directReports: 0,
     tasksOverseeing: 0,
@@ -149,7 +150,11 @@ export function SupervisorDashboard({ organization, onLogout }: SupervisorDashbo
                   Manage Team
                 </Button>
               </Link>
-              <Button variant="ghost" onClick={onLogout}><LogOut className="w-4 h-4 mr-2" />
+              <Button variant="default" onClick={onClockOut}>
+                Clock Out
+              </Button>
+              <Button variant="ghost" onClick={onLogout}>
+                <LogOut className="w-4 h-4 mr-2" />
                 Logout
               </Button>
             </div>

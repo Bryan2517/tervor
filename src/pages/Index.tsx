@@ -102,8 +102,26 @@ const Index = () => {
     setUser(user);
   };
 
-  const handleOrganizationSelect = (org: OrganizationWithRole) => {
+  const handleOrganizationSelect = async (org: OrganizationWithRole) => {
+    // Auto clock in when selecting organization
+    if (user) {
+      await supabase.rpc('create_daily_checkin', {
+        p_org_id: org.id,
+        p_user_id: user.id,
+        p_source: 'web'
+      });
+    }
     setSelectedOrganization(org);
+  };
+
+  const handleClockOut = async () => {
+    if (selectedOrganization && user) {
+      await supabase.rpc('clock_out_from_org', {
+        p_org_id: selectedOrganization.id,
+        p_user_id: user.id
+      });
+    }
+    setSelectedOrganization(null);
   };
 
   const handleLogout = async () => {
@@ -136,6 +154,7 @@ const Index = () => {
     <RoleDashboard 
       organization={selectedOrganization} 
       onLogout={handleLogout}
+      onClockOut={handleClockOut}
     />
   );
 };
