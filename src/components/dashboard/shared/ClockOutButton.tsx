@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Button } from "@/components/ui/enhanced-button";
+import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
