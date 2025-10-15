@@ -21,30 +21,33 @@ const Index = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Function to check and set last selected organization
+    const loadLastSelectedOrg = async (userId: string) => {
+      const { data } = await supabase
+        .from("organization_members")
+        .select(`
+          role,
+          organization:organizations(*)
+        `)
+        .eq("user_id", userId)
+        .eq("last_selected", true)
+        .single();
+
+      if (data?.organization) {
+        setSelectedOrganization({
+          ...data.organization,
+          role: data.role,
+        } as OrganizationWithRole);
+      }
+    };
+
     // Check for existing session
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         setSession(session);
         setUser(session.user);
-        
-        // Check for last selected organization
-        const { data } = await supabase
-          .from("organization_members")
-          .select(`
-            role,
-            organization:organizations(*)
-          `)
-          .eq("user_id", session.user.id)
-          .eq("last_selected", true)
-          .single();
-
-        if (data?.organization) {
-          setSelectedOrganization({
-            ...data.organization,
-            role: data.role,
-          } as OrganizationWithRole);
-        }
+        await loadLastSelectedOrg(session.user.id);
       }
       setLoading(false);
     };
@@ -53,11 +56,14 @@ const Index = () => {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         if (!session) {
           setSelectedOrganization(null);
+        } else if (event === 'SIGNED_IN' && session.user) {
+          // Load last selected organization after sign in
+          await loadLastSelectedOrg(session.user.id);
         }
       }
     );
