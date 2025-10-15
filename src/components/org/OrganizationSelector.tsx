@@ -28,14 +28,14 @@ interface OrganizationSelectorProps {
 const roleIcons = {
   owner: Crown,
   admin: ShieldCheck,
-  manager: UserCheck,
+  supervisor: UserCheck,
   employee: UserIcon,
 };
 
 const roleColors = {
   owner: "bg-gradient-points",
   admin: "bg-primary",
-  manager: "bg-accent",
+  supervisor: "bg-accent",
   employee: "bg-secondary",
 };
 
