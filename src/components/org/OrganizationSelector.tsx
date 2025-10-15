@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
-import { Button } from "@/components/ui/enhanced-button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -270,7 +270,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
   if (organizations.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card variant="elevated" className="w-full max-w-md text-center">
+        <Card className="w-full max-w-md text-center">
           <CardHeader>
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <Building className="w-8 h-8 text-muted-foreground" />
@@ -390,8 +390,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
             return (
               <Card
                 key={org.id}
-                variant="interactive"
-                className="cursor-pointer"
+                className="cursor-pointer hover:bg-accent/50 transition-colors"
                 onClick={() => handleSelectOrganization(org)}
               >
                 <CardContent className="flex items-center gap-4 p-6">
