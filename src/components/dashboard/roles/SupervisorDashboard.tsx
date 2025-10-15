@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
+import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
@@ -65,7 +65,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
       const [employeesData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('user_id')
+          .select('id')
           .eq('organization_id', organization.id)
           .eq('role', 'employee'),
         supabase
@@ -169,7 +169,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
         {/* Supervisor Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Link to="/supervisor/direct-reports" className="group">
-          <Card>
+          <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -185,7 +185,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           </Link>
 
           <Link to="/supervisor/task-overseeing" className="group">
-          <Card>
+          <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -201,7 +201,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           </Link>
 
           <Link to="/supervisor/complete-today" className="group">
-          <Card>
+          <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -216,7 +216,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           </Card>
           </Link>
 
-          <Card>
+          <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
