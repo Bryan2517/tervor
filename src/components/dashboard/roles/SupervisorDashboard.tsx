@@ -65,7 +65,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
       const [employeesData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('id')
+          .select('user_id')
           .eq('organization_id', organization.id)
           .eq('role', 'employee'),
         supabase
