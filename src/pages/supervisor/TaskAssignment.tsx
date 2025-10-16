@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Target, Clock, CheckCircle2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Target, Clock, CheckCircle2, Filter, Search } from "lucide-react";
 
 type TaskStatus = "todo" | "in_progress" | "done";
 type TaskPriority = "low" | "medium" | "high";
@@ -29,6 +31,9 @@ export default function SupervisorTaskAssignment() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchTasks();
@@ -106,6 +111,30 @@ export default function SupervisorTaskAssignment() {
     }
   };
 
+  const filteredTasks = useMemo(() => {
+    let filtered = tasks;
+    
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(t => t.status === filterStatus);
+    }
+    
+    if (filterPriority !== "all") {
+      filtered = filtered.filter(t => t.priority === filterPriority);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(t =>
+        t.title.toLowerCase().includes(query) ||
+        t.description?.toLowerCase().includes(query) ||
+        t.project?.name.toLowerCase().includes(query) ||
+        t.assignee?.full_name.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [tasks, filterStatus, filterPriority, searchQuery]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -131,11 +160,64 @@ export default function SupervisorTaskAssignment() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-6xl">
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Priority</label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Target className="w-5 h-5" />
-              All Tasks ({tasks.length})
+              All Tasks ({filteredTasks.length})
             </CardTitle>
             <CardDescription>
               View and track all tasks in your organization
@@ -143,7 +225,12 @@ export default function SupervisorTaskAssignment() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {tasks.map((task) => (
+              {filteredTasks.length === 0 && tasks.length > 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No tasks match your filters
+                </div>
+              )}
+              {filteredTasks.map((task) => (
                 <div
                   key={task.id}
                   className="flex items-start justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"

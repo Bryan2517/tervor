@@ -1,11 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Users, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Users, Eye, Search } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -25,6 +26,7 @@ export default function SupervisorManageTeam() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchTeamMembers();
@@ -76,6 +78,15 @@ export default function SupervisorManageTeam() {
     return <Users className="w-4 h-4" />;
   };
 
+  const filteredMembers = useMemo(() => {
+    if (!searchQuery) return teamMembers;
+    const query = searchQuery.toLowerCase();
+    return teamMembers.filter(m => 
+      m.users.full_name.toLowerCase().includes(query) ||
+      m.users.email.toLowerCase().includes(query)
+    );
+  }, [teamMembers, searchQuery]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -105,15 +116,24 @@ export default function SupervisorManageTeam() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              Team Members ({teamMembers.length})
+              Team Members ({filteredMembers.length})
             </CardTitle>
             <CardDescription>
               Your direct reports and employees under your supervision
             </CardDescription>
+            <div className="relative mt-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {teamMembers.map((member) => (
+              {filteredMembers.map((member) => (
                 <div
                   key={member.user_id}
                   className="flex items-center justify-between p-4 border rounded-lg"
@@ -136,6 +156,11 @@ export default function SupervisorManageTeam() {
                   </Badge>
                 </div>
               ))}
+              {filteredMembers.length === 0 && teamMembers.length > 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No team members match your search
+                </div>
+              )}
               {teamMembers.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   No team members found

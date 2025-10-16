@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Target, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Target, CheckCircle2, Clock, AlertCircle, Filter, Search } from "lucide-react";
 
 interface Task {
   id: string;
@@ -42,6 +44,9 @@ export function TasksOverview() {
     overdue: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterPriority, setFilterPriority] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchTasks();
@@ -110,6 +115,30 @@ export function TasksOverview() {
       default: return "bg-muted text-muted-foreground";
     }
   };
+
+  const filteredTasks = useMemo(() => {
+    let filtered = tasks;
+    
+    if (filterStatus !== "all") {
+      filtered = filtered.filter(t => t.status === filterStatus);
+    }
+    
+    if (filterPriority !== "all") {
+      filtered = filtered.filter(t => t.priority === filterPriority);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(t =>
+        t.title.toLowerCase().includes(query) ||
+        t.description?.toLowerCase().includes(query) ||
+        t.projects.name.toLowerCase().includes(query) ||
+        t.users?.full_name.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [tasks, filterStatus, filterPriority, searchQuery]);
 
   if (loading) {
     return (
@@ -198,8 +227,71 @@ export function TasksOverview() {
           </Card>
         </div>
 
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Priority</label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="space-y-4">
-          {tasks.length === 0 ? (
+          {filteredTasks.length === 0 && tasks.length > 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">No tasks match your filters</h3>
+                <p className="text-sm text-muted-foreground">
+                  Try adjusting your search or filter criteria
+                </p>
+              </CardContent>
+            </Card>
+          ) : filteredTasks.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
                 <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

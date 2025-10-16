@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Users, Crown, Shield, Eye, User } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Users, Crown, Shield, Eye, User, Search, Filter } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -28,6 +29,8 @@ export function TeamManagement() {
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [organizationId, setOrganizationId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState<string>("all");
 
   useEffect(() => {
     fetchTeamMembers();
@@ -144,6 +147,24 @@ export function TeamManagement() {
     }
   };
 
+  const filteredMembers = useMemo(() => {
+    let filtered = members;
+    
+    if (filterRole !== "all") {
+      filtered = filtered.filter(m => m.role === filterRole);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(m =>
+        m.user.full_name.toLowerCase().includes(query) ||
+        m.user.email.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [members, filterRole, searchQuery]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -171,17 +192,50 @@ export function TeamManagement() {
       <div className="container mx-auto px-4 py-6">
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Team Members ({members.length})
-            </CardTitle>
-            <CardDescription>
-              View and manage organization members
-            </CardDescription>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Team Members ({filteredMembers.length})
+                </CardTitle>
+                <CardDescription>
+                  View and manage organization members
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-muted-foreground" />
+                <Select value={filterRole} onValueChange={setFilterRole}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Roles</SelectItem>
+                    <SelectItem value="owner">Owner</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                    <SelectItem value="supervisor">Supervisor</SelectItem>
+                    <SelectItem value="employee">Employee</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="relative mt-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {members.map((member) => (
+              {filteredMembers.length === 0 && members.length > 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No team members match your filters
+                </div>
+              )}
+              {filteredMembers.map((member) => (
                 <div
                   key={member.user_id}
                   className="flex items-center justify-between p-4 bg-muted/50 rounded-lg"
