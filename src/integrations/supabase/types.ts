@@ -1221,7 +1221,7 @@ export type Database = {
       redemption_status: "pending" | "confirmed" | "fulfilled" | "cancelled"
       request_status: "pending" | "approved" | "rejected"
       task_priority: "low" | "medium" | "high" | "urgent"
-      task_status: "todo" | "in_progress" | "blocked" | "done"
+      task_status: "todo" | "in_progress" | "blocked" | "done" | "overdue" | "review"
       timelog_action: "start" | "pause" | "resume" | "complete"
       user_role: "owner" | "admin" | "supervisor" | "employee"
     }
@@ -1367,7 +1367,7 @@ export const Constants = {
       redemption_status: ["pending", "confirmed", "fulfilled", "cancelled"],
       request_status: ["pending", "approved", "rejected"],
       task_priority: ["low", "medium", "high", "urgent"],
-      task_status: ["todo", "in_progress", "blocked", "done"],
+      task_status: ["todo", "in_progress", "blocked", "done", "overdue", "review"],
       timelog_action: ["start", "pause", "resume", "complete"],
       user_role: ["owner", "admin", "supervisor", "employee"],
     },

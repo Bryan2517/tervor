@@ -8,7 +8,7 @@ import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 import { TaskFilters } from "@/components/tasks/TaskFilters";
 
-type TaskStatus = "todo" | "in_progress" | "review" | "done";
+type TaskStatus = "todo" | "in_progress" | "review" | "done" | "overdue";
 type TaskPriority = "low" | "medium" | "high";
 
 interface Task {
@@ -26,8 +26,25 @@ interface Task {
   } | null;
 }
 
+interface TaskStats {
+  total: number;
+  todo: number;
+  inProgress: number;
+  done: number;
+  overdue: number;
+  review: number;
+}
+
 export function TaskAssignment() {
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<TaskStats>({
+    total: 0,
+    todo: 0,
+    inProgress: 0,
+    done: 0,
+    overdue: 0,
+    review: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
@@ -37,21 +54,110 @@ export function TaskAssignment() {
     fetchTasks();
   }, []);
 
+  // Calculate stats whenever tasks change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const newStats = {
+        total: tasks.length,
+        todo: tasks.filter(task => task.status === 'todo').length,
+        inProgress: tasks.filter(task => task.status === 'in_progress').length,
+        done: tasks.filter(task => task.status === 'done').length,
+        overdue: tasks.filter(task => task.status === 'overdue').length,
+        review: tasks.filter(task => task.status === 'review').length,
+      };
+      setStats(newStats);
+    } else {
+      // Reset stats when no tasks
+      setStats({
+        total: 0,
+        todo: 0,
+        inProgress: 0,
+        done: 0,
+        overdue: 0,
+        review: 0,
+      });
+    }
+  }, [tasks]);
+
+  const checkAndUpdateOverdueTasks = async (tasksData: Task[]) => {
+    const now = new Date();
+    const overdueTasks = tasksData.filter(task => {
+      if (!task.due_date) return false;
+      
+      // Create date objects for comparison (ignore time portion)
+      const dueDate = new Date(task.due_date);
+      dueDate.setHours(0, 0, 0, 0);
+      const today = new Date(now);
+      today.setHours(0, 0, 0, 0);
+      
+      return dueDate < today && 
+             task.status !== 'done' && 
+             task.status !== 'overdue';
+    });
+
+    // Update overdue tasks in the database
+    const updatePromises = overdueTasks.map(async (task) => {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ status: 'overdue' })
+          .eq('id', task.id);
+
+        if (error) {
+          console.error(`Error updating task ${task.id} to overdue:`, error);
+          return null;
+        } else {
+          console.log(`Task ${task.id} marked as overdue`);
+          return task.id;
+        }
+      } catch (error) {
+        console.error(`Error updating task ${task.id}:`, error);
+        return null;
+      }
+    });
+
+    // Wait for all updates to complete
+    await Promise.all(updatePromises);
+
+    // Return updated tasks array with overdue status applied
+    return tasksData.map(task => {
+      if (overdueTasks.find(overdueTask => overdueTask.id === task.id)) {
+        return { ...task, status: 'overdue' as TaskStatus };
+      }
+      return { ...task, status: task.status as TaskStatus };
+    });
+  };
+
   const fetchTasks = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log("No user found");
+        setLoading(false);
+        return;
+      }
 
-      const { data: memberData } = await supabase
+      const { data: memberData, error: memberError } = await supabase
         .from("organization_members")
         .select("organization_id")
         .eq("user_id", user.id)
         .eq("role", "admin")
         .single();
 
-      if (!memberData) return;
+      if (memberError) {
+        console.error("Error fetching organization:", memberError);
+        setLoading(false);
+        return;
+      }
 
-      const { data, error } = await supabase
+      if (!memberData) {
+        console.log("No organization found for user");
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+
+      const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
         .select(`
           id,
@@ -66,10 +172,26 @@ export function TaskAssignment() {
         .eq("projects.organization_id", memberData.organization_id)
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
-      setTasks(data as Task[]);
+      if (tasksError) {
+        console.error("Error fetching tasks:", tasksError);
+        toast({
+          title: "Error",
+          description: "Failed to load tasks",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (tasksData) {
+        // Check and update overdue tasks
+        const updatedTasks = await checkAndUpdateOverdueTasks(tasksData as Task[]);
+        setTasks(updatedTasks);
+      } else {
+        setTasks([]);
+      }
     } catch (error) {
-      console.error("Error fetching tasks:", error);
+      console.error("Error in fetchTasks:", error);
       toast({
         title: "Error",
         description: "Failed to load tasks",
@@ -88,6 +210,25 @@ export function TaskAssignment() {
         return "default";
       case "low":
         return "secondary";
+      default:
+        return "secondary";
+    }
+  };
+
+  const getStatusColor = (status: TaskStatus) => {
+    switch (status) {
+      case "done": 
+        return "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300";
+      case "in_progress": 
+        return "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300";
+      case "todo": 
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
+      case "overdue": 
+        return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
+      case "review":
+        return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
+      default: 
+        return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
     }
   };
 
@@ -96,9 +237,13 @@ export function TaskAssignment() {
       case "todo":
         return <Circle className="w-4 h-4 text-muted-foreground" />;
       case "in_progress":
-        return <Clock className="w-4 h-4 text-primary" />;
+        return <Clock className="w-4 h-4 text-blue-500" />;
       case "done":
-        return <CheckCircle2 className="w-4 h-4 text-success" />;
+        return <CheckCircle2 className="w-4 h-4 text-green-500" />;
+      case "overdue":
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      case "review":
+        return <AlertCircle className="w-4 h-4 text-yellow-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-muted-foreground" />;
     }
@@ -120,7 +265,7 @@ export function TaskAssignment() {
       filtered = filtered.filter(t =>
         t.title.toLowerCase().includes(query) ||
         t.projects?.name.toLowerCase().includes(query) ||
-        t.assignee?.full_name.toLowerCase().includes(query)
+        t.assignee?.full_name?.toLowerCase().includes(query)
       );
     }
     
@@ -154,14 +299,134 @@ export function TaskAssignment() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
-        <TaskFilters
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
-          filterStatus={filterStatus}
-          onStatusChange={setFilterStatus}
-          filterPriority={filterPriority}
-          onPriorityChange={setFilterPriority}
-        />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Total</p>
+                  <p className="text-xl font-bold">{stats.total}</p>
+                </div>
+                <Target className="w-6 h-6 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">To Do</p>
+                  <p className="text-xl font-bold">{stats.todo}</p>
+                </div>
+                <Circle className="w-6 h-6 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">In Progress</p>
+                  <p className="text-xl font-bold">{stats.inProgress}</p>
+                </div>
+                <Clock className="w-6 h-6 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Review</p>
+                  <p className="text-xl font-bold">{stats.review}</p>
+                </div>
+                <AlertCircle className="w-6 h-6 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Done</p>
+                  <p className="text-xl font-bold">{stats.done}</p>
+                </div>
+                <CheckCircle2 className="w-6 h-6 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Overdue</p>
+                  <p className="text-xl font-bold">{stats.overdue}</p>
+                </div>
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Filter className="w-5 h-5" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Search</label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search tasks..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Status</label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="todo">To Do</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="review">Review</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Priority</label>
+                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Priorities" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Priorities</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="low">Low</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader>
@@ -202,9 +467,13 @@ export function TaskAssignment() {
 
                   <div className="flex items-center gap-3">
                     <Badge variant={getPriorityColor(task.priority)}>{task.priority}</Badge>
-                    <Badge variant="outline">{task.status.replace("_", " ")}</Badge>
+                    <Badge variant="outline" className={getStatusColor(task.status)}>
+                      {task.status.replace("_", " ")}
+                    </Badge>
                     {task.due_date && (
-                      <div className="text-sm text-muted-foreground">
+                      <div className={`text-sm ${
+                        task.status === 'overdue' ? 'text-red-500 font-medium' : 'text-muted-foreground'
+                      }`}>
                         Due: {new Date(task.due_date).toLocaleDateString()}
                       </div>
                     )}

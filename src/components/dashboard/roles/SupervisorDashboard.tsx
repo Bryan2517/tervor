@@ -184,7 +184,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           </Card>
           </Link>
 
-          <Link to="/supervisor/task-overseeing" className="group">
+          <Link to="/supervisor/task-assignment" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
