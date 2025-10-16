@@ -4,8 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Target, CheckCircle2, Circle, Clock, AlertCircle } from "lucide-react";
-import { TaskFilters } from "@/components/tasks/TaskFilters";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Target, CheckCircle2, Circle, Clock, AlertCircle, Filter, Search } from "lucide-react";
 
 interface Task {
   id: string;
