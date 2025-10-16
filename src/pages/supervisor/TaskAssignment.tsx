@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Target, Clock, CheckCircle2, Filter, Search, AlertCircle, Circle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
-type TaskStatus = "todo" | "in_progress" | "review" | "done" | "blocked" | "overdue";
+type TaskStatus = "todo" | "in_progress" | "review" | "done" | "overdue";
 type TaskPriority = "low" | "medium" | "high";
 
 interface Task {
@@ -28,9 +28,26 @@ interface Task {
   };
 }
 
+interface TaskStats {
+  total: number;
+  todo: number;
+  inProgress: number;
+  done: number;
+  overdue: number;
+  review: number;
+}
+
 export default function SupervisorTaskAssignment() {
   const navigate = useNavigate();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [stats, setStats] = useState<TaskStats>({
+    total: 0,
+    todo: 0,
+    inProgress: 0,
+    done: 0,
+    overdue: 0,
+    review: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterPriority, setFilterPriority] = useState<string>("all");
@@ -39,6 +56,31 @@ export default function SupervisorTaskAssignment() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  // Calculate stats whenever tasks change
+  useEffect(() => {
+    if (tasks.length > 0) {
+      const newStats = {
+        total: tasks.length,
+        todo: tasks.filter(task => task.status === 'todo').length,
+        inProgress: tasks.filter(task => task.status === 'in_progress').length,
+        done: tasks.filter(task => task.status === 'done').length,
+        overdue: tasks.filter(task => task.status === 'overdue').length,
+        review: tasks.filter(task => task.status === 'review').length,
+      };
+      setStats(newStats);
+    } else {
+      // Reset stats when no tasks
+      setStats({
+        total: 0,
+        todo: 0,
+        inProgress: 0,
+        done: 0,
+        overdue: 0,
+        review: 0,
+      });
+    }
+  }, [tasks]);
 
   const checkAndUpdateOverdueTasks = async (tasksData: Task[]) => {
     const now = new Date();
@@ -177,6 +219,8 @@ export default function SupervisorTaskAssignment() {
         return "default";
       case "low":
         return "secondary";
+      default:
+        return "secondary";
     }
   };
 
@@ -192,8 +236,6 @@ export default function SupervisorTaskAssignment() {
         return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300";
       case "review":
         return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300";
-      case "blocked":
-        return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300";
       default: 
         return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300";
     }
@@ -211,8 +253,6 @@ export default function SupervisorTaskAssignment() {
         return <AlertCircle className="w-4 h-4 text-red-500" />;
       case "review":
         return <AlertCircle className="w-4 h-4 text-yellow-500" />;
-      case "blocked":
-        return <AlertCircle className="w-4 h-4 text-orange-500" />;
       default:
         return <AlertCircle className="w-4 h-4 text-muted-foreground" />;
     }
@@ -267,6 +307,80 @@ export default function SupervisorTaskAssignment() {
       </header>
 
       <div className="container mx-auto px-4 py-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Total</p>
+                  <p className="text-xl font-bold">{stats.total}</p>
+                </div>
+                <Target className="w-6 h-6 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">To Do</p>
+                  <p className="text-xl font-bold">{stats.todo}</p>
+                </div>
+                <Circle className="w-6 h-6 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">In Progress</p>
+                  <p className="text-xl font-bold">{stats.inProgress}</p>
+                </div>
+                <Clock className="w-6 h-6 text-blue-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Review</p>
+                  <p className="text-xl font-bold">{stats.review}</p>
+                </div>
+                <AlertCircle className="w-6 h-6 text-yellow-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Done</p>
+                  <p className="text-xl font-bold">{stats.done}</p>
+                </div>
+                <CheckCircle2 className="w-6 h-6 text-green-500" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground">Overdue</p>
+                  <p className="text-xl font-bold">{stats.overdue}</p>
+                </div>
+                <AlertCircle className="w-6 h-6 text-red-500" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -300,7 +414,6 @@ export default function SupervisorTaskAssignment() {
                     <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="review">Review</SelectItem>
                     <SelectItem value="done">Done</SelectItem>
-                    <SelectItem value="blocked">Blocked</SelectItem>
                     <SelectItem value="overdue">Overdue</SelectItem>
                   </SelectContent>
                 </Select>
