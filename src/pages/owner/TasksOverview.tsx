@@ -30,7 +30,7 @@ interface TaskStats {
   todo: number;
   inProgress: number;
   done: number;
-  overdue: number;
+  submitted: number;
 }
 
 export function TasksOverview() {
@@ -41,7 +41,7 @@ export function TasksOverview() {
     todo: 0,
     inProgress: 0,
     done: 0,
-    overdue: 0,
+    submitted: 0,
   });
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
@@ -52,41 +52,6 @@ export function TasksOverview() {
     fetchTasks();
   }, []);
 
-  const checkAndUpdateOverdueTasks = async (tasksData: Task[]) => {
-    const now = new Date();
-    const overdueTasks = tasksData.filter(task => 
-      task.due_date && 
-      new Date(task.due_date) < now && 
-      task.status !== 'done' && 
-      task.status !== 'overdue'
-    );
-
-    // Update overdue tasks in the database
-    for (const task of overdueTasks) {
-      try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ status: 'overdue' })
-          .eq('id', task.id);
-
-        if (error) {
-          console.error(`Error updating task ${task.id} to overdue:`, error);
-        } else {
-          console.log(`Task ${task.id} marked as overdue`);
-        }
-      } catch (error) {
-        console.error(`Error updating task ${task.id}:`, error);
-      }
-    }
-
-    // Return updated tasks array with overdue status applied
-    return tasksData.map(task => {
-      if (overdueTasks.find(overdueTask => overdueTask.id === task.id)) {
-        return { ...task, status: 'overdue' };
-      }
-      return task;
-    });
-  };
 
   const fetchTasks = async () => {
     try {
@@ -113,17 +78,14 @@ export function TasksOverview() {
         .order("created_at", { ascending: false });
 
       if (tasksData) {
-        // Check and update overdue tasks
-        const updatedTasks = await checkAndUpdateOverdueTasks(tasksData);
-        setTasks(updatedTasks);
+        setTasks(tasksData);
         
-        const now = new Date();
         const statsData = {
-          total: updatedTasks.length,
-          todo: updatedTasks.filter(t => t.status === 'todo').length,
-          inProgress: updatedTasks.filter(t => t.status === 'in_progress').length,
-          done: updatedTasks.filter(t => t.status === 'done').length,
-          overdue: updatedTasks.filter(t => t.status === 'overdue').length,
+          total: tasksData.length,
+          todo: tasksData.filter(t => t.status === 'todo').length,
+          inProgress: tasksData.filter(t => t.status === 'in_progress').length,
+          done: tasksData.filter(t => t.status === 'done').length,
+          submitted: tasksData.filter(t => t.status === 'submitted').length,
         };
         setStats(statsData);
       }
@@ -148,7 +110,8 @@ export function TasksOverview() {
       case "done": return "bg-success/10 text-success";
       case "in_progress": return "bg-primary/10 text-primary";
       case "todo": return "bg-muted text-muted-foreground";
-      case "overdue": return "bg-destructive/10 text-destructive";
+      case "submitted": return "bg-warning/10 text-warning";
+      case "blocked": return "bg-destructive/10 text-destructive";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -161,7 +124,9 @@ export function TasksOverview() {
         return <Clock className="w-4 h-4 text-primary" />;
       case "done":
         return <CheckCircle2 className="w-4 h-4 text-success" />;
-      case "overdue":
+      case "submitted":
+        return <CheckCircle2 className="w-4 h-4 text-warning" />;
+      case "blocked":
         return <AlertCircle className="w-4 h-4 text-destructive" />;
       default:
         return <AlertCircle className="w-4 h-4 text-muted-foreground" />;
@@ -270,10 +235,10 @@ export function TasksOverview() {
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Overdue</p>
-                  <p className="text-2xl font-bold">{stats.overdue}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Submitted</p>
+                  <p className="text-2xl font-bold">{stats.submitted}</p>
                 </div>
-                <AlertCircle className="w-8 h-8 text-destructive" />
+                <CheckCircle2 className="w-8 h-8 text-warning" />
               </div>
             </CardContent>
           </Card>

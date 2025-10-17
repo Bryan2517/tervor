@@ -33,7 +33,7 @@ import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
-type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
+type TaskStatus = "todo" | "in_progress" | "blocked" | "done" | "submitted";
 type TaskPriority = "low" | "medium" | "high" | "urgent";
 
 interface OrganizationWithRole {
@@ -64,6 +64,7 @@ const statusColors = {
   in_progress: "bg-primary",
   blocked: "bg-destructive",
   done: "bg-success",
+  submitted: "bg-warning",
 };
 
 const priorityColors = {
@@ -143,7 +144,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
     }
   };
 
-  const handleTaskAction = async (taskId: string, action: "start" | "pause" | "complete") => {
+  const handleTaskAction = async (taskId: string, action: "start" | "pause" | "submit") => {
     try {
       let newStatus: TaskStatus;
       switch (action) {
@@ -153,8 +154,8 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
         case "pause":
           newStatus = "todo";
           break;
-        case "complete":
-          newStatus = "done";
+        case "submit":
+          newStatus = "submitted";
           break;
       }
 
@@ -169,13 +170,13 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
       if (error) throw error;
 
       // Also create time log entry
-      if (action === "start" || action === "pause" || action === "complete") {
+      if (action === "start" || action === "pause" || action === "submit") {
         await supabase
           .from("time_logs")
           .insert({
             task_id: taskId,
             user_id: (await supabase.auth.getUser()).data.user?.id,
-            action: action === "complete" ? "complete" : action,
+            action: action === "submit" ? "complete" : action,
           });
       }
 
@@ -213,12 +214,19 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
             <Button
               variant="complete"
               size="sm"
-              onClick={() => handleTaskAction(task.id, "complete")}
+              onClick={() => handleTaskAction(task.id, "submit")}
             >
               <CheckCircle2 className="w-3 h-3" />
-              Complete
+              Submit
             </Button>
           </div>
+        );
+      case "submitted":
+        return (
+          <Badge variant="secondary" className="bg-warning/10 text-warning border-warning">
+            <Clock className="w-3 h-3 mr-1" />
+            Awaiting Review
+          </Badge>
         );
       case "blocked":
         return (

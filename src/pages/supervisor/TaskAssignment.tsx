@@ -82,54 +82,6 @@ export default function SupervisorTaskAssignment() {
     }
   }, [tasks]);
 
-  const checkAndUpdateOverdueTasks = async (tasksData: Task[]) => {
-    const now = new Date();
-    const overdueTasks = tasksData.filter(task => {
-      if (!task.due_date) return false;
-      
-      // Create date objects for comparison (ignore time portion)
-      const dueDate = new Date(task.due_date);
-      dueDate.setHours(0, 0, 0, 0);
-      const today = new Date(now);
-      today.setHours(0, 0, 0, 0);
-      
-      return dueDate < today && 
-             task.status !== 'done' && 
-             task.status !== 'overdue';
-    });
-
-    // Update overdue tasks in the database
-    const updatePromises = overdueTasks.map(async (task) => {
-      try {
-        const { error } = await supabase
-          .from('tasks')
-          .update({ status: 'overdue' })
-          .eq('id', task.id);
-
-        if (error) {
-          console.error(`Error updating task ${task.id} to overdue:`, error);
-          return null;
-        } else {
-          console.log(`Task ${task.id} marked as overdue`);
-          return task.id;
-        }
-      } catch (error) {
-        console.error(`Error updating task ${task.id}:`, error);
-        return null;
-      }
-    });
-
-    // Wait for all updates to complete
-    await Promise.all(updatePromises);
-
-    // Return updated tasks array with overdue status applied
-    return tasksData.map(task => {
-      if (overdueTasks.find(overdueTask => overdueTask.id === task.id)) {
-        return { ...task, status: 'overdue' as TaskStatus };
-      }
-      return task;
-    });
-  };
 
   const fetchTasks = async () => {
     try {
@@ -193,9 +145,7 @@ export default function SupervisorTaskAssignment() {
       }
 
       if (tasksData) {
-        // Check and update overdue tasks
-        const updatedTasks = await checkAndUpdateOverdueTasks(tasksData as Task[]);
-        setTasks(updatedTasks);
+        setTasks(tasksData as Task[]);
       } else {
         setTasks([]);
       }
