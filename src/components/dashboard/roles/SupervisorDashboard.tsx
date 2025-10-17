@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
@@ -7,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
 import { ClockOutButton } from "../shared/ClockOutButton";
+import { Link } from "react-router-dom";
 import { 
   Eye, 
   Users, 
@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   Gift,
   Coins,
-  LogOut
+  LogOut,
+  Settings
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -281,6 +282,12 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
                     <Link to="/supervisor/shop">
                       <Gift className="w-6 h-6" />
                       <span>Rewards Shop</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/settings">
+                      <Settings className="w-6 h-6" />
+                      <span>Settings</span>
                     </Link>
                   </Button>
                 </div>

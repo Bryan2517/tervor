@@ -27,7 +27,11 @@ import {
   ArrowRight,
   Star,
   Zap,
-  LogOut
+  LogOut,
+  Settings,
+  User,
+  Gift,
+  Wrench
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
@@ -265,7 +269,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                 <span className="font-semibold">{stats.points}</span>
               </Card>
               <Button variant="outline" asChild>
-                <Link to="/employee/shop">Shop</Link>
+                <Link to="/employee/settings"><Settings/>Settings</Link>
               </Button>
               <ClockOutButton 
                 organizationId={organization.id}
@@ -343,7 +347,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* My Tasks */}
-          <div className="lg:col-span-2">
+          <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -427,6 +431,35 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                     </Card>
                   ))
                 )}
+              </CardContent>
+            </Card>
+
+             {/* Employee Tools */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="w-5 h-5" />
+                  Quick Tools
+                </CardTitle>
+                <CardDescription>
+                  Fast and easy access to your work
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/shop">
+                      <Gift className="w-6 h-6" />
+                      <span>Rewards Shop</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/settings">
+                      <Settings className="w-6 h-6" />
+                      <span>Settings</span>
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>

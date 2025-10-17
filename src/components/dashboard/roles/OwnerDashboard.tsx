@@ -18,7 +18,8 @@ import {
   Calendar,
   BarChart3,
   Gift,
-  LogOut
+  LogOut,
+  Wrench
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -219,7 +220,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Settings className="w-5 h-5" />
+                  <Wrench className="w-5 h-5" />
                   Quick Actions
                 </CardTitle>
                 <CardDescription>

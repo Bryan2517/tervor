@@ -19,7 +19,8 @@ import {
   Clock,
   CheckCircle2,
   Gift,
-  LogOut
+  LogOut,
+  User
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -143,10 +144,10 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
             </div>
             
             <div className="flex items-center gap-4">
-              <Link to="/admin/settings">
+              <Link to="/admin/manage-team">
                 <Button variant="outline">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
+                  <Users className="w-4 h-4 mr-2" />
+                  Manage Team
                 </Button>
               </Link>
               <ClockOutButton 
@@ -279,6 +280,12 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
                       <Gift className="w-6 h-6" />
                       <span>Rewards Shop</span>
+                    </Button>
+                  </Link>
+                  <Link to="/admin/settings">
+                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
+                      <Settings className="w-6 h-6" />
+                      <span>Settings</span>
                     </Button>
                   </Link>
                 </div>

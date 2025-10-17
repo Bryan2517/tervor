@@ -169,7 +169,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
             <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
               <Sparkles className="w-6 h-6" />
             </div>
-            <h1 className="text-3xl font-bold">TeamSpark</h1>
+            <h1 className="text-3xl font-bold">Trevor</h1>
           </div>
           
           <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">

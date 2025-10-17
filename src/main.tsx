@@ -28,6 +28,8 @@ import SupervisorQualityReview from "./pages/supervisor/QualityReview";
 import SupervisorDirectReports from "./pages/supervisor/DirectReports";
 import SupervisorTaskOverseeing from "./pages/supervisor/TaskOverseeing";
 import SupervisorCompleteToday from "./pages/supervisor/CompleteToday";
+import { Settings as SupervisorSettings } from "./pages/supervisor/Settings";
+import { Settings as EmployeeSettings } from "./pages/employee/Settings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 const router = createBrowserRouter([
@@ -146,6 +148,14 @@ const router = createBrowserRouter([
       {
         path: "supervisor/complete-today",
         element: <SupervisorCompleteToday />,
+      },
+      {
+        path: "supervisor/settings",
+        element: <SupervisorSettings />,
+      },
+      {
+        path: "employee/settings",
+        element: <EmployeeSettings />,
       },
     ],
   },
