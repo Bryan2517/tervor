@@ -4,8 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
-import { toast } from "@/hooks/use-toast";
+import { ArrowLeft, CheckCircle2, Star } from "lucide-react";
 
 type TaskPriority = "low" | "medium" | "high";
 
@@ -60,7 +59,7 @@ export default function SupervisorQualityReview() {
           assignee:users!tasks_assignee_id_fkey(full_name)
         `)
         .eq("project.organization_id", orgMember.organization_id)
-        .eq("status", "submitted")
+        .eq("status", "done")
         .order("updated_at", { ascending: false });
 
       if (error) throw error;
@@ -72,53 +71,14 @@ export default function SupervisorQualityReview() {
     }
   };
 
-  const handleApprove = async (taskId: string) => {
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status: "done" })
-        .eq("id", taskId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Task approved and marked as complete",
-      });
-
-      fetchCompletedTasks();
-    } catch (error) {
-      console.error("Error approving task:", error);
-      toast({
-        title: "Error",
-        description: "Failed to approve task",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleReject = async (taskId: string) => {
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status: "todo" })
-        .eq("id", taskId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Task Returned",
-        description: "Task has been sent back for revision",
-      });
-
-      fetchCompletedTasks();
-    } catch (error) {
-      console.error("Error rejecting task:", error);
-      toast({
-        title: "Error",
-        description: "Failed to reject task",
-        variant: "destructive",
-      });
+  const getPriorityColor = (priority: TaskPriority) => {
+    switch (priority) {
+      case "low":
+        return "bg-muted";
+      case "medium":
+        return "bg-warning";
+      case "high":
+        return "bg-destructive";
     }
   };
 
@@ -151,10 +111,10 @@ export default function SupervisorQualityReview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5" />
-              Submitted Tasks Awaiting Review ({completedTasks.length})
+              Completed Tasks ({completedTasks.length})
             </CardTitle>
             <CardDescription>
-              Review submitted work and approve or request changes
+              Review and assess the quality of completed work
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -162,50 +122,36 @@ export default function SupervisorQualityReview() {
               {completedTasks.map((task) => (
                 <div
                   key={task.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
-                  <div className="flex-1">
-                    <p className="font-medium">{task.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm text-muted-foreground">{task.project.name}</span>
-                      {task.assignee && (
-                        <>
-                          <span className="text-xs text-muted-foreground">•</span>
-                          <span className="text-sm text-muted-foreground">
-                            {task.assignee.full_name}
-                          </span>
-                        </>
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-semibold">{task.title}</h3>
+                        <Badge variant="outline" className={getPriorityColor(task.priority)}>
+                          {task.priority}
+                        </Badge>
+                      </div>
+                      {task.description && (
+                        <p className="text-sm text-muted-foreground mb-2">{task.description}</p>
                       )}
-                      <Badge variant={task.priority === "high" ? "destructive" : "default"}>
-                        {task.priority}
-                      </Badge>
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                        <span>Project: {task.project.name}</span>
+                        {task.assignee && <span>Completed by: {task.assignee.full_name}</span>}
+                        <span>Completed: {new Date(task.updated_at).toLocaleDateString()}</span>
+                      </div>
                     </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleReject(task.id)}
-                    >
-                      <AlertCircle className="w-4 h-4 mr-2" />
-                      Request Changes
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleApprove(task.id)}
-                    >
-                      <CheckCircle2 className="w-4 h-4 mr-2" />
-                      Approve
-                    </Button>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star key={star} className="w-4 h-4 text-warning fill-warning" />
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
               {completedTasks.length === 0 && (
-                <div className="text-center py-12">
-                  <CheckCircle2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">No tasks awaiting review</p>
+                <div className="text-center py-8 text-muted-foreground">
+                  No completed tasks to review
                 </div>
               )}
             </div>

@@ -53,7 +53,7 @@ export function QualityReview() {
           assignee:users!assignee_id(full_name)
         `)
         .eq("projects.organization_id", memberData.organization_id)
-        .eq("status", "submitted")
+        .eq("status", "in_progress")
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -99,7 +99,7 @@ export function QualityReview() {
     try {
       const { error } = await supabase
         .from("tasks")
-        .update({ status: "todo" })
+        .update({ status: "in_progress" })
         .eq("id", taskId);
 
       if (error) throw error;
@@ -151,7 +151,7 @@ export function QualityReview() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5" />
-              Submitted Tasks Awaiting Review
+              Tasks Awaiting Review
             </CardTitle>
           </CardHeader>
           <CardContent>

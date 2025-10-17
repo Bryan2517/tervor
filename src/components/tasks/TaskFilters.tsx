@@ -52,8 +52,7 @@ export function TaskFilters({
                 <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="todo">To Do</SelectItem>
                 <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="submitted">Submitted</SelectItem>
-                <SelectItem value="blocked">Blocked</SelectItem>
+                <SelectItem value="done">Done</SelectItem>
               </SelectContent>
             </Select>
           </div>
