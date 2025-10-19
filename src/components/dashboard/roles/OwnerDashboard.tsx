@@ -63,7 +63,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
       const [membersData, projectsData, tasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('id')
+          .select('user_id')
           .eq('organization_id', organization.id),
         supabase
           .from('projects')

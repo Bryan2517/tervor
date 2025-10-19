@@ -66,9 +66,9 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
       const [membersData, projectsData, tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('organization_members')
-          .select('id')
-          .eq('organization_id', organization.id)
-          .neq('role', 'owner'),
+          .select('user_id')
+          .eq('organization_id', organization.id),
+          // .neq('role', 'owner'),
         supabase
           .from('projects')
           .select('id')

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CircularProgress } from "@/components/ui/circular-progress";
 import { ArrowLeft, Plus, FolderOpen, Users, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -16,6 +17,9 @@ interface Project {
   description?: string;
   created_at: string;
   organization_id: string;
+  totalTasks?: number;
+  completedTasks?: number;
+  progressPercentage?: number;
 }
 
 export function ManageProjects() {
@@ -56,7 +60,28 @@ export function ManageProjects() {
           .order("created_at", { ascending: false });
 
         if (data) {
-          setProjects(data);
+          // Fetch task counts for each project
+          const projectsWithStats = await Promise.all(
+            data.map(async (project) => {
+              const { data: tasksData } = await supabase
+                .from("tasks")
+                .select("id, status")
+                .eq("project_id", project.id);
+
+              const totalTasks = tasksData?.length || 0;
+              const completedTasks = tasksData?.filter(task => task.status === 'done').length || 0;
+              const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+
+              return {
+                ...project,
+                totalTasks,
+                completedTasks,
+                progressPercentage,
+              };
+            })
+          );
+
+          setProjects(projectsWithStats);
         }
       }
     } catch (error) {
@@ -213,8 +238,23 @@ export function ManageProjects() {
                       {new Date(project.created_at).toLocaleDateString()}
                     </div>
                   </div>
+                  
+                  {/* Progress Ring */}
+                  <div className="flex justify-center my-4">
+                    <CircularProgress 
+                      percentage={project.progressPercentage || 0} 
+                      size={64}
+                      strokeWidth={6}
+                    />
+                  </div>
+                  
                   <div className="flex gap-2 mt-4">
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => navigate(`/owner/projects/${project.id}`)}
+                    >
                       View Details
                     </Button>
                   </div>

@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import { InvitePage } from "./pages/InvitePage";
 import { OrganizationSettings } from "./pages/owner/OrganizationSettings";
 import { ManageProjects } from "./pages/owner/ManageProjects";
+import { ProjectDetail } from "./pages/owner/ProjectDetail";
 import { Analytics } from "./pages/owner/Analytics";
 import { TeamManagement } from "./pages/owner/TeamManagement";
 import { Settings } from "./pages/owner/Settings";
@@ -52,6 +53,10 @@ const router = createBrowserRouter([
       {
         path: "owner/projects",
         element: <ManageProjects />,
+      },
+      {
+        path: "owner/projects/:projectId",
+        element: <ProjectDetail />,
       },
       {
         path: "owner/analytics",
