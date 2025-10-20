@@ -8,6 +8,7 @@ import { InvitePage } from "./pages/InvitePage";
 import { OrganizationSettings } from "./pages/owner/OrganizationSettings";
 import { ManageProjects } from "./pages/owner/ManageProjects";
 import { ProjectDetail } from "./pages/owner/ProjectDetail";
+import { ProjectDetail as AdminProjectDetail } from "./pages/admin/ProjectDetail";
 import { Analytics } from "./pages/owner/Analytics";
 import { TeamManagement } from "./pages/owner/TeamManagement";
 import { Settings } from "./pages/owner/Settings";
@@ -55,7 +56,7 @@ const router = createBrowserRouter([
         element: <ManageProjects />,
       },
       {
-        path: "owner/projects/:projectId",
+        path: "owner/projects/:projectName",
         element: <ProjectDetail />,
       },
       {
@@ -95,6 +96,10 @@ const router = createBrowserRouter([
         element: <ProgressTracking />,
       },
       {
+        path: "admin/progress-tracking/:projectName",
+        element: <AdminProjectDetail />,
+      },
+      {
         path: "admin/time-management",
         element: <TimeManagement />,
       },
@@ -107,20 +112,20 @@ const router = createBrowserRouter([
         element: <Shop />,
       },
       {
-        path: "supervisor/shop",
-        element: <Shop />,
-      },
-      {
-        path: "employee/shop",
-        element: <Shop />,
-      },
-      {
         path: "admin/shop/manage",
         element: <AdminShopManagement />,
       },
       {
         path: "admin/settings",
         element: <AdminSettings />,
+      },
+      {
+        path: "supervisor/shop",
+        element: <Shop />,
+      },
+      {
+        path: "employee/shop",
+        element: <Shop />,
       },
       {
         path: "supervisor/manage-team",

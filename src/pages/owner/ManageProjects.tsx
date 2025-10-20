@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CircularProgress } from "@/components/ui/circular-progress";
+import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, Plus, FolderOpen, Users, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -19,6 +19,7 @@ interface Project {
   organization_id: string;
   totalTasks?: number;
   completedTasks?: number;
+  overdueTasks?: number;
   progressPercentage?: number;
 }
 
@@ -60,22 +61,31 @@ export function ManageProjects() {
           .order("created_at", { ascending: false });
 
         if (data) {
-          // Fetch task counts for each project
+          // Fetch task counts for each project including due dates for overdue calculation
           const projectsWithStats = await Promise.all(
             data.map(async (project) => {
               const { data: tasksData } = await supabase
                 .from("tasks")
-                .select("id, status")
+                .select("id, status, due_date")
                 .eq("project_id", project.id);
 
               const totalTasks = tasksData?.length || 0;
               const completedTasks = tasksData?.filter(task => task.status === 'done').length || 0;
+              
+              // Calculate overdue tasks - tasks that are not done and have a past due date
+              const overdueTasks = tasksData?.filter(task => 
+                task.status !== 'done' && 
+                task.due_date && 
+                new Date(task.due_date) < new Date()
+              ).length || 0;
+              
               const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
               return {
                 ...project,
                 totalTasks,
                 completedTasks,
+                overdueTasks,
                 progressPercentage,
               };
             })
@@ -220,47 +230,78 @@ export function ManageProjects() {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card key={project.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FolderOpen className="w-5 h-5" />
-                    {project.name}
-                  </CardTitle>
-                  <CardDescription>
-                    {project.description || "No description"}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="w-4 h-4" />
-                      {new Date(project.created_at).toLocaleDateString()}
+            {projects.map((project) => {
+              const pendingTasks = (project.totalTasks || 0) - (project.completedTasks || 0);
+              
+              return (
+                <Card key={project.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <FolderOpen className="w-5 h-5" />
+                      {project.name}
+                    </CardTitle>
+                    <CardDescription>
+                      {project.description || "No description"}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {new Date(project.created_at).toLocaleDateString()}
+                      </div>
                     </div>
-                  </div>
-                  
-                  {/* Progress Ring */}
-                  <div className="flex justify-center my-4">
-                    <CircularProgress 
-                      percentage={project.progressPercentage || 0} 
-                      size={64}
-                      strokeWidth={6}
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2 mt-4">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="flex-1"
-                      onClick={() => navigate(`/owner/projects/${project.id}`)}
-                    >
-                      View Details
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    
+                    {/* Progress Bar */}
+                    <div className="space-y-2 my-4">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span className="font-medium">{project.progressPercentage || 0}%</span>
+                      </div>
+                      <Progress value={project.progressPercentage || 0} className="w-full" />
+                      <div className="text-xs text-muted-foreground text-center">
+                        {project.completedTasks || 0} of {project.totalTasks || 0} tasks completed
+                      </div>
+                    </div>
+                    
+                    {/* Task Statistics - Matching Admin's ProgressTracking */}
+                    <div className="grid grid-cols-4 gap-2 pt-4 border-t text-center">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="text-lg font-semibold">{project.totalTasks || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Done</p>
+                        <p className="text-lg font-semibold text-green-600">{project.completedTasks || 0}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Pending</p>
+                        <p className="text-lg font-semibold text-orange-600">
+                          {pendingTasks}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Overdue</p>
+                        <p className="text-lg font-semibold text-red-600">
+                          {project.overdueTasks || 0}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex gap-2 mt-4">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => navigate(`/owner/projects/${encodeURIComponent(project.name)}`)}
+                      >
+                        View Details
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>

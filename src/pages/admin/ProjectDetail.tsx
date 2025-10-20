@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { 
   ArrowLeft, 
   FolderOpen, 
+  Users, 
   Calendar, 
   Target, 
   CheckCircle2, 
@@ -248,9 +249,9 @@ export function ProjectDetail() {
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-2">Project not found</h2>
           <p className="text-muted-foreground mb-4">The project you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate("/owner/projects")}>
+          <Button onClick={() => navigate("/admin/progress-tracking")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Projects
+            Back to Progress Tracking
           </Button>
         </div>
       </div>
@@ -263,7 +264,7 @@ export function ProjectDetail() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/owner/projects")}>
+              <Button variant="ghost" size="icon" onClick={() => navigate("/admin/progress-tracking")}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
@@ -407,7 +408,7 @@ export function ProjectDetail() {
           </CardContent>
         </Card>
 
-        {/* Project Tasks Card - Updated to match admin's design */}
+        {/* Project Tasks Card */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
