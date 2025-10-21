@@ -4,6 +4,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { usePresence } from "@/contexts/PresenceContext";
 
 interface ClockOutButtonProps {
   organizationId: string;
@@ -15,6 +16,15 @@ export function ClockOutButton({ organizationId, organizationName, onClockOut }:
   const [showDialog, setShowDialog] = useState(false);
   const [clockingOut, setClockingOut] = useState(false);
   const { toast } = useToast();
+  
+  // Try to get presence context, but don't fail if not available
+  let presenceContext;
+  try {
+    presenceContext = usePresence();
+  } catch (error) {
+    // Presence context not available, that's okay
+    presenceContext = null;
+  }
 
   const handleConfirmClockOut = async () => {
     setClockingOut(true);
@@ -28,6 +38,11 @@ export function ClockOutButton({ organizationId, organizationName, onClockOut }:
       });
 
       if (error) throw error;
+
+      // Set user presence to offline
+      if (presenceContext?.setUserOffline) {
+        await presenceContext.setUserOffline();
+      }
 
       toast({
         title: "Clocked Out",

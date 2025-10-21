@@ -224,13 +224,6 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
             </Button>
           </div>
         );
-      case "blocked":
-        return (
-          <Badge variant="destructive">
-            <AlertTriangle className="w-3 h-3 mr-1" />
-            Blocked
-          </Badge>
-        );
       default:
         return null;
     }
@@ -466,49 +459,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Team Snapshot */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Team Snapshot
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>JD</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">John Doe</p>
-                    <p className="text-xs text-muted-foreground">Working on API Integration</p>
-                  </div>
-                  <div className="w-2 h-2 bg-success rounded-full"></div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>AS</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Alice Smith</p>
-                    <p className="text-xs text-muted-foreground">On break</p>
-                  </div>
-                  <div className="w-2 h-2 bg-warning rounded-full"></div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-8 h-8">
-                    <AvatarFallback>MJ</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Mike Johnson</p>
-                    <p className="text-xs text-muted-foreground">Offline</p>
-                  </div>
-                  <div className="w-2 h-2 bg-muted-foreground rounded-full"></div>
-                </div>
-              </CardContent>
-            </Card>
+            <OnlinePresence organizationId={organization.id} />
 
             {/* Points & Rewards */}
             <Card variant="points">

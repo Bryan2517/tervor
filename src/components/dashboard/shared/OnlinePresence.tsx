@@ -3,7 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Users, Crown, Shield, Eye, User } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { Users, Crown, Shield, Eye, User, Circle, Settings } from "lucide-react";
+import { PresenceProvider } from "@/contexts/PresenceContext";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -13,7 +21,7 @@ interface OnlineUser {
   email: string;
   avatar_url?: string;
   role: UserRole;
-  status: "online" | "away" | "offline";
+  status: "online" | "idle" | "offline" | "do_not_disturb";
   current_task_id?: string;
   current_task_title?: string;
 }
@@ -37,12 +45,20 @@ const roleColors = {
 };
 
 const statusColors = {
-  online: "bg-success",
-  away: "bg-warning", 
-  offline: "bg-muted-foreground",
+  online: "bg-green-500",
+  idle: "bg-yellow-500", 
+  offline: "bg-gray-400",
+  do_not_disturb: "bg-red-500",
 };
 
-export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
+const statusShapes = {
+  online: "rounded-full",
+  idle: "rounded-full", 
+  offline: "rounded-full",
+  do_not_disturb: "rounded-sm",
+};
+
+function OnlinePresenceComponent({ organizationId }: OnlinePresenceProps) {
   const [onlineUsers, setOnlineUsers] = useState<Record<UserRole, OnlineUser[]>>({
     owner: [],
     admin: [],
@@ -50,6 +66,7 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
     employee: [],
   });
   const [loading, setLoading] = useState(true);
+  const [currentUserStatus, setCurrentUserStatus] = useState<"online" | "idle" | "offline" | "do_not_disturb">("online");
 
   useEffect(() => {
     fetchOnlineUsers();
@@ -73,36 +90,112 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
     // Update our own presence
     updatePresence();
 
+    // Set up periodic presence updates and idle detection
+    const presenceInterval = setInterval(() => {
+      updatePresence();
+      fetchOnlineUsers(); // Refresh to update idle/offline status
+    }, 30000); // Update every 30 seconds
+
+    // Set up idle detection
+    let idleTimer: NodeJS.Timeout;
+    const resetIdleTimer = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(async () => {
+        // Set user as idle after 20 minutes of inactivity
+        try {
+          const { data: user } = await supabase.auth.getUser();
+          if (user.user) {
+            await supabase
+              .from('user_presence')
+              .upsert({
+                user_id: user.user.id,
+                status: 'idle',
+                updated_at: new Date().toISOString(),
+              });
+          }
+        } catch (error) {
+          console.error('Error setting idle status:', error);
+        }
+      }, 20 * 60 * 1000); // 20 minutes
+    };
+
+    // Track user activity
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    activityEvents.forEach(event => {
+      document.addEventListener(event, resetIdleTimer, true);
+    });
+
+    resetIdleTimer();
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(presenceInterval);
+      clearTimeout(idleTimer);
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, resetIdleTimer, true);
+      });
     };
   }, [organizationId]);
 
   const fetchOnlineUsers = async () => {
     try {
-      const { data, error } = await supabase
+      console.log('Fetching users for organization:', organizationId);
+      
+      // First, let's try a simple query to get organization members
+      const { data: membersData, error: membersError } = await supabase
         .from('organization_members')
-        .select(`
-          role,
-          user:users!inner(
-            id,
-            full_name,
-            email,
-            avatar_url
-          ),
-          presence:user_presence(
-            status,
-            current_task_id,
-            updated_at
-          ),
-          current_task:tasks(
-            title
-          )
-        `)
-        .eq('organization_id', organizationId)
-        .order('role', { ascending: false });
-
-      if (error) throw error;
+        .select('user_id, role')
+        .eq('organization_id', organizationId);
+      
+      console.log('Simple members query:', { membersData, membersError });
+      
+      if (membersError) {
+        console.error('Error fetching organization members:', membersError);
+        throw membersError;
+      }
+      
+      if (!membersData || membersData.length === 0) {
+        console.log('No organization members found');
+        setOnlineUsers({
+          owner: [],
+          admin: [],
+          supervisor: [],
+          employee: [],
+        });
+        return;
+      }
+      
+      // Get user details for each member
+      const userIds = membersData.map(member => member.user_id);
+      const { data: usersData, error: usersError } = await supabase
+        .from('users')
+        .select('id, full_name, email, avatar_url')
+        .in('id', userIds);
+      
+      console.log('Users query:', { usersData, usersError });
+      
+      if (usersError) {
+        console.error('Error fetching users:', usersError);
+        throw usersError;
+      }
+      
+      // Get attendance data for today
+      const today = new Date().toISOString().split('T')[0];
+      const { data: attendanceData, error: attendanceError } = await supabase
+        .from('attendance_checkins')
+        .select('user_id, clock_in_at, clock_out_at, local_date')
+        .eq('org_id', organizationId)
+        .eq('local_date', today);
+      
+      console.log('Attendance query:', { attendanceData, attendanceError });
+      
+      // Get presence data
+      const { data: presenceData, error: presenceError } = await supabase
+        .from('user_presence')
+        .select('user_id, status, updated_at, current_task_id')
+        .in('user_id', userIds);
+      
+      console.log('Presence query:', { presenceData, presenceError });
 
       const usersByRole: Record<UserRole, OnlineUser[]> = {
         owner: [],
@@ -111,14 +204,44 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
         employee: [],
       };
 
-      data?.forEach((member: any) => {
-        const user = member.user;
-        const presence = member.presence?.[0];
-        const currentTask = member.current_task?.[0];
+      console.log('Processing members:', membersData.length, 'members found');
+      
+      membersData.forEach((member: any) => {
+        const user = usersData?.find(u => u.id === member.user_id);
+        if (!user) return;
         
-        // Consider user offline if no presence update in last 5 minutes
-        const isRecent = presence?.updated_at && 
-          (Date.now() - new Date(presence.updated_at).getTime()) < 5 * 60 * 1000;
+        const attendance = attendanceData?.find(a => a.user_id === member.user_id);
+        const presence = presenceData?.find(p => p.user_id === member.user_id);
+        
+        // Determine user status based on attendance and activity
+        let userStatus: "online" | "idle" | "offline" | "do_not_disturb" = 'offline';
+        
+        // Check if user is currently clocked in (no clock_out_at for today)
+        const isClockedIn = attendance && 
+          attendance.clock_in_at && 
+          !attendance.clock_out_at;
+        
+        if (isClockedIn) {
+          // User is clocked in, determine status based on activity
+          if (presence?.updated_at) {
+            const timeSinceUpdate = Date.now() - new Date(presence.updated_at).getTime();
+            const twentyMinutes = 20 * 60 * 1000; // 20 minutes for idle
+            
+            if (timeSinceUpdate < twentyMinutes) {
+              // Recent activity - use the stored status or default to online
+              userStatus = presence.status as "online" | "idle" | "offline" | "do_not_disturb" || 'online';
+            } else {
+              // Idle if no activity for more than 20 minutes
+              userStatus = 'idle';
+            }
+          } else {
+            // No presence data, default to online if clocked in
+            userStatus = 'online';
+          }
+        } else {
+          // User is not clocked in or has clocked out
+          userStatus = 'offline';
+        }
         
         const onlineUser: OnlineUser = {
           id: user.id,
@@ -126,14 +249,16 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
           email: user.email,
           avatar_url: user.avatar_url,
           role: member.role,
-          status: isRecent ? (presence?.status || 'offline') : 'offline',
+          status: userStatus,
           current_task_id: presence?.current_task_id,
-          current_task_title: currentTask?.title,
+          current_task_title: undefined, // We'll add task fetching later if needed
         };
 
+        console.log('Created user:', onlineUser);
         usersByRole[member.role as UserRole].push(onlineUser);
       });
 
+      console.log('Final users by role:', usersByRole);
       setOnlineUsers(usersByRole);
     } catch (error) {
       console.error('Error fetching online users:', error);
@@ -142,7 +267,31 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
     }
   };
 
-  const updatePresence = async () => {
+  const updatePresence = async (status: "online" | "idle" | "offline" | "do_not_disturb" = "online") => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      await supabase
+        .from('user_presence')
+        .upsert({
+          user_id: user.user.id,
+          status: status,
+          updated_at: new Date().toISOString(),
+        });
+      
+      setCurrentUserStatus(status);
+    } catch (error) {
+      console.error('Error updating presence:', error);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: "online" | "idle" | "offline" | "do_not_disturb") => {
+    await updatePresence(newStatus);
+  };
+
+  // Function to set user status to online when they clock in
+  const setUserOnline = async () => {
     try {
       const { data: user } = await supabase.auth.getUser();
       if (!user.user) return;
@@ -154,13 +303,41 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
           status: 'online',
           updated_at: new Date().toISOString(),
         });
+      
+      setCurrentUserStatus('online');
+      // Refresh the user list to show updated status
+      fetchOnlineUsers();
     } catch (error) {
-      console.error('Error updating presence:', error);
+      console.error('Error setting user online:', error);
+    }
+  };
+
+  // Function to set user status to offline when they clock out
+  const setUserOffline = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      await supabase
+        .from('user_presence')
+        .upsert({
+          user_id: user.user.id,
+          status: 'offline',
+          updated_at: new Date().toISOString(),
+        });
+      
+      setCurrentUserStatus('offline');
+      // Refresh the user list to show updated status
+      fetchOnlineUsers();
+    } catch (error) {
+      console.error('Error setting user offline:', error);
     }
   };
 
   const getTotalOnline = () => {
-    return Object.values(onlineUsers).flat().filter(user => user.status === 'online').length;
+    return Object.values(onlineUsers).flat().filter(user => 
+      user.status === 'online' || user.status === 'idle' || user.status === 'do_not_disturb'
+    ).length;
   };
 
   const getTotalMembers = () => {
@@ -201,9 +378,37 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
             <Users className="w-5 h-5" />
             Team Presence
           </div>
-          <Badge variant="outline" className="text-xs">
-            {getTotalOnline()}/{getTotalMembers()} online
-          </Badge>
+          <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 px-2">
+                  <div className={`w-2 h-2 rounded-full ${statusColors[currentUserStatus]} mr-2`}></div>
+                  <span className="text-xs capitalize">{currentUserStatus.replace('_', ' ')}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => handleStatusChange('online')}>
+                  <div className="w-2 h-2 rounded-full bg-green-500 mr-2"></div>
+                  Online
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('idle')}>
+                  <div className="w-2 h-2 rounded-full bg-yellow-500 mr-2"></div>
+                  Idle
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('do_not_disturb')}>
+                  <div className="w-2 h-2 rounded-full bg-red-500 mr-2"></div>
+                  Do Not Disturb
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleStatusChange('offline')}>
+                  <div className="w-2 h-2 rounded-full bg-gray-400 mr-2"></div>
+                  Offline
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <Badge variant="outline" className="text-xs">
+              {getTotalOnline()}/{getTotalMembers()} online
+            </Badge>
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -212,30 +417,38 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
           if (users.length === 0) return null;
 
           const RoleIcon = roleIcons[role];
+          const onlineCount = users.filter(u => u.status === 'online' || u.status === 'idle' || u.status === 'do_not_disturb').length;
           
           return (
             <div key={role}>
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-3">
                 <div className={`w-4 h-4 rounded-full ${roleColors[role]} flex items-center justify-center`}>
                   <RoleIcon className="w-2.5 h-2.5 text-white" />
                 </div>
                 <span className="text-sm font-medium capitalize">{role}s</span>
                 <span className="text-xs text-muted-foreground">
-                  ({users.filter(u => u.status === 'online').length})
+                  ({onlineCount}/{users.length})
                 </span>
               </div>
               
-              <div className="space-y-2 ml-6">
+              <div className="space-y-1 ml-6">
                 {users.map((user) => (
-                  <div key={user.id} className="flex items-center gap-3">
+                  <div key={user.id} className="flex items-center gap-3 py-1 hover:bg-muted/50 rounded-md px-2 transition-colors">
                     <div className="relative">
                       <Avatar className="w-8 h-8">
                         <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback className="text-xs">
-                          {user.full_name.substring(0, 2).toUpperCase()}
+                        <AvatarFallback className="text-xs font-medium">
+                          {user.full_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
-                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-background ${statusColors[user.status]}`}></div>
+                      <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 border-2 border-background ${statusColors[user.status]} ${statusShapes[user.status]} flex items-center justify-center`}>
+                        {user.status === 'do_not_disturb' && (
+                          <div className="w-1.5 h-0.5 bg-white rounded-full"></div>
+                        )}
+                        {user.status === 'idle' && (
+                          <div className="w-2 h-2 bg-yellow-500 rounded-full border border-white"></div>
+                        )}
+                      </div>
                     </div>
                     
                     <div className="flex-1 min-w-0">
@@ -247,7 +460,8 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
                       ) : (
                         <p className="text-xs text-muted-foreground">
                           {user.status === 'online' ? 'Available' : 
-                           user.status === 'away' ? 'Away' : 'Offline'}
+                           user.status === 'idle' ? 'Idle' : 
+                           user.status === 'do_not_disturb' ? 'Do Not Disturb' : 'Offline'}
                         </p>
                       )}
                     </div>
@@ -259,5 +473,55 @@ export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
         })}
       </CardContent>
     </Card>
+  );
+}
+
+export function OnlinePresence({ organizationId }: OnlinePresenceProps) {
+  const [setUserOnline, setUserOffline] = useState<{
+    setUserOnline: () => Promise<void>;
+    setUserOffline: () => Promise<void>;
+  } | null>(null);
+
+  const handleSetUserOnline = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      await supabase
+        .from('user_presence')
+        .upsert({
+          user_id: user.user.id,
+          status: 'online',
+          updated_at: new Date().toISOString(),
+        });
+    } catch (error) {
+      console.error('Error setting user online:', error);
+    }
+  };
+
+  const handleSetUserOffline = async () => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) return;
+
+      await supabase
+        .from('user_presence')
+        .upsert({
+          user_id: user.user.id,
+          status: 'offline',
+          updated_at: new Date().toISOString(),
+        });
+    } catch (error) {
+      console.error('Error setting user offline:', error);
+    }
+  };
+
+  return (
+    <PresenceProvider 
+      setUserOnline={handleSetUserOnline}
+      setUserOffline={handleSetUserOffline}
+    >
+      <OnlinePresenceComponent organizationId={organizationId} />
+    </PresenceProvider>
   );
 }

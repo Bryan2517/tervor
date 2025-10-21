@@ -13,6 +13,7 @@ import { Building, Users, Crown, ShieldCheck, UserCheck, UserIcon, Plus, Key, Lo
 import { Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { usePresence } from "@/contexts/PresenceContext";
 
 type Organization = Tables<"my_organizations">;
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -53,6 +54,15 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
   const [joining, setJoining] = useState(false);
   const [clockingIn, setClockingIn] = useState(false);
   const { toast } = useToast();
+  
+  // Try to get presence context, but don't fail if not available
+  let presenceContext;
+  try {
+    presenceContext = usePresence();
+  } catch (error) {
+    // Presence context not available, that's okay
+    presenceContext = null;
+  }
 
   useEffect(() => {
     fetchOrganizations();
@@ -119,6 +129,11 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
         .update({ last_selected: true })
         .eq("user_id", user.id)
         .eq("organization_id", selectedOrgForClockIn.id);
+
+      // Set user presence to online
+      if (presenceContext?.setUserOnline) {
+        await presenceContext.setUserOnline();
+      }
 
       toast({
         title: "Clocked In",
