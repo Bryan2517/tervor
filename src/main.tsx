@@ -34,6 +34,7 @@ import SupervisorCompleteToday from "./pages/supervisor/CompleteToday";
 import { Settings as SupervisorSettings } from "./pages/supervisor/Settings";
 import { Settings as EmployeeSettings } from "./pages/employee/Settings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { OrganizationProvider } from "./contexts/OrganizationContext";
 
 const router = createBrowserRouter([
   {
@@ -181,7 +182,9 @@ const queryClient = new QueryClient();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <OrganizationProvider>
+        <RouterProvider router={router} />
+      </OrganizationProvider>
     </QueryClientProvider>
   </StrictMode>
 );

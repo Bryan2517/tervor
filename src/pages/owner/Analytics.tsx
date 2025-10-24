@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ArrowLeft, TrendingUp, Users, Target, Award, Calendar, BarChart3, PieChart } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import { Area, AreaChart, Bar, BarChart, Cell, Line, LineChart, Pie, PieChart as RechartsPieChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface AnalyticsData {
   totalMembers: number;
@@ -36,6 +37,7 @@ interface AnalyticsData {
 
 export function Analytics() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalMembers: 0,
     activeProjects: 0,
@@ -50,42 +52,35 @@ export function Analytics() {
   const [dateRange, setDateRange] = useState<"week" | "month" | "year">("month");
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [dateRange]);
+    if (organization) {
+      fetchAnalytics();
+    }
+  }, [dateRange, organization]);
 
   const fetchAnalytics = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
-        .single();
-
-      if (!orgData) return;
 
       // Fetch basic stats
       const [membersData, projectsData, tasksData, allTasksData] = await Promise.all([
         supabase
           .from("organization_members")
           .select("id")
-          .eq("organization_id", orgData.organization_id),
+          .eq("organization_id", organization.id),
         supabase
           .from("projects")
           .select("id")
-          .eq("organization_id", orgData.organization_id),
+          .eq("organization_id", organization.id),
         supabase
           .from("tasks")
           .select("status, priority, project:projects!inner(organization_id)")
-          .eq("project.organization_id", orgData.organization_id)
+          .eq("project.organization_id", organization.id)
           .eq("status", "done"),
         supabase
           .from("tasks")
           .select("status, priority, created_at, project:projects!inner(organization_id)")
-          .eq("project.organization_id", orgData.organization_id)
+          .eq("project.organization_id", organization.id)
       ]);
 
       // Get leaderboard for top performers based on date range
@@ -109,7 +104,7 @@ export function Analytics() {
 
       const leaderboardDateFilter = getDateRangeForLeaderboard();
       const { data: leaderboardData } = await supabase.rpc("get_leaderboard", {
-        p_org: orgData.organization_id,
+        p_org: organization.id,
         p_since: leaderboardDateFilter,
       });
 

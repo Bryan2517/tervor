@@ -20,6 +20,7 @@ import {
 import { ArrowLeft, Users, UserCog, Shield, Eye, Filter, UserMinus, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -34,37 +35,28 @@ interface TeamMember {
 }
 
 export function ManageTeam() {
+  const { organization } = useOrganization();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
   const [filterRole, setFilterRole] = useState<string>("all");
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchTeamMembers();
-  }, []);
+    if (organization) {
+      fetchTeamMembers();
+    }
+  }, [organization]);
 
   const fetchTeamMembers = async () => {
+    if (!organization) return;
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
       setCurrentUserId(user.id);
-
-      const { data: memberData } = await supabase
-        .from("organization_members")
-        .select("organization_id, role")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!memberData) return;
-
-      setOrganizationId(memberData.organization_id);
-      setCurrentUserRole(memberData.role);
 
       const { data, error } = await supabase
         .from("organization_members")
@@ -77,7 +69,7 @@ export function ManageTeam() {
             avatar_url
           )
         `)
-        .eq("organization_id", memberData.organization_id)
+        .eq("organization_id", organization.id)
         .order("role");
 
       if (error) throw error;
@@ -95,13 +87,13 @@ export function ManageTeam() {
   };
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
-    if (!organizationId) return;
+    if (!organization) return;
 
     try {
       const { error } = await supabase
         .from("organization_members")
         .update({ role: newRole })
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organization.id)
         .eq("user_id", userId);
 
       if (error) throw error;
@@ -123,14 +115,14 @@ export function ManageTeam() {
   };
 
   const handleRemoveMember = async (userId: string) => {
-    if (!organizationId) return;
+    if (!organization) return;
 
     setRemovingUserId(userId);
     try {
       const { error } = await supabase
         .from("organization_members")
         .delete()
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organization.id)
         .eq("user_id", userId);
 
       if (error) throw error;

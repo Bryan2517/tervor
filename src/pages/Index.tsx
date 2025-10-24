@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthPage } from "@/components/auth/AuthPage";
 import { OrganizationSelector } from "@/components/org/OrganizationSelector";
 import { RoleDashboard } from "@/components/dashboard/RoleDashboard";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -15,10 +16,18 @@ interface OrganizationWithRole {
 }
 
 const Index = () => {
+  const { organization: contextOrganization, setOrganization: setContextOrganization } = useOrganization();
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [selectedOrganization, setSelectedOrganization] = useState<OrganizationWithRole | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync local state with context
+  useEffect(() => {
+    if (contextOrganization) {
+      setSelectedOrganization(contextOrganization);
+    }
+  }, [contextOrganization]);
 
   useEffect(() => {
     // Check for existing session
@@ -40,10 +49,12 @@ const Index = () => {
           .single();
 
         if (data?.organization) {
-          setSelectedOrganization({
+          const org = {
             ...data.organization,
             role: data.role,
-          } as OrganizationWithRole);
+          } as OrganizationWithRole;
+          setSelectedOrganization(org);
+          setContextOrganization(org);
         }
       }
       setLoading(false);
@@ -105,11 +116,13 @@ const Index = () => {
   const handleOrganizationSelect = (org: OrganizationWithRole) => {
     // Just set the organization, clock in will be handled by confirmation dialog
     setSelectedOrganization(org);
+    setContextOrganization(org);
   };
 
   const handleClockOut = () => {
     // Just clear organization, clock out will be handled by confirmation dialog
     setSelectedOrganization(null);
+    setContextOrganization(null);
   };
 
   const handleLogout = async () => {
@@ -117,6 +130,7 @@ const Index = () => {
     setSession(null);
     setUser(null);
     setSelectedOrganization(null);
+    setContextOrganization(null);
   };
 
   if (loading) {

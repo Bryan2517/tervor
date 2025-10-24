@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Users, Eye, Search } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -23,31 +24,21 @@ interface TeamMember {
 
 export default function SupervisorManageTeam() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchTeamMembers();
-  }, []);
+    if (organization) {
+      fetchTeamMembers();
+    }
+  }, [organization]);
 
   const fetchTeamMembers = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Get user's organization
-      const { data: orgMember } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
-
-      if (!orgMember) return;
-      setOrganizationId(orgMember.organization_id);
-
       // Fetch team members (employees only for supervisor)
       const { data, error } = await supabase
         .from("organization_members")
@@ -61,7 +52,7 @@ export default function SupervisorManageTeam() {
             avatar_url
           )
         `)
-        .eq("organization_id", orgMember.organization_id)
+        .eq("organization_id", organization.id)
         .eq("role", "employee");
 
       if (error) throw error;

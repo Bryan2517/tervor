@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Users, Crown, Shield, Eye, User, Search, Filter, UserMinus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -37,45 +38,35 @@ interface TeamMember {
 export function TeamManagement() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { organization } = useOrganization();
   const [members, setMembers] = useState<TeamMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchTeamMembers();
-  }, []);
+    if (organization) {
+      fetchTeamMembers();
+    }
+  }, [organization]);
 
   const fetchTeamMembers = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgData } = await supabase
+      const { data } = await supabase
         .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
-        .single();
+        .select(`
+          user_id,
+          role,
+          user:users(id, full_name, email, avatar_url)
+        `)
+        .eq("organization_id", organization.id)
+        .order("role");
 
-      if (orgData) {
-        setOrganizationId(orgData.organization_id);
-        
-        const { data } = await supabase
-          .from("organization_members")
-          .select(`
-            user_id,
-            role,
-            user:users(id, full_name, email, avatar_url)
-          `)
-          .eq("organization_id", orgData.organization_id)
-          .order("role");
-
-        if (data) {
-          setMembers(data as unknown as TeamMember[]);
-        }
+      if (data) {
+        setMembers(data as unknown as TeamMember[]);
       }
     } catch (error) {
       console.error("Error fetching team members:", error);
@@ -85,11 +76,13 @@ export function TeamManagement() {
   };
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    if (!organization) return;
+    
     try {
       const { error } = await supabase
         .from("organization_members")
         .update({ role: newRole })
-        .eq("organization_id", organizationId)
+        .eq("organization_id", organization.id)
         .eq("user_id", userId);
 
       if (error) throw error;
@@ -111,10 +104,12 @@ export function TeamManagement() {
   };
 
   const handleRemoveMember = async (userId: string) => {
+    if (!organization) return;
+    
     setRemovingUserId(userId);
     try {
       await supabase.rpc("remove_member", {
-        p_org: organizationId,
+        p_org: organization.id,
         p_user: userId,
       });
 

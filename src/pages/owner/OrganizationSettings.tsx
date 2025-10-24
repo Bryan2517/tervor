@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ArrowLeft, Building2, Upload, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Organization {
   id: string;
@@ -30,6 +31,7 @@ interface Organization {
 export function OrganizationSettings() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { organization: contextOrganization, setOrganization: setContextOrganization } = useOrganization();
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,26 +43,26 @@ export function OrganizationSettings() {
   });
 
   useEffect(() => {
-    fetchOrganization();
-  }, []);
+    if (contextOrganization) {
+      fetchOrganization();
+    }
+  }, [contextOrganization]);
 
   const fetchOrganization = async () => {
+    if (!contextOrganization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
       const { data } = await supabase
-        .from("organization_members")
-        .select("organization:organizations(*)")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
+        .from("organizations")
+        .select("*")
+        .eq("id", contextOrganization.id)
         .single();
 
-      if (data?.organization) {
-        setOrganization(data.organization as Organization);
+      if (data) {
+        setOrganization(data as Organization);
         setFormData({
-          name: data.organization.name || "",
-          description: data.organization.description || "",
+          name: data.name || "",
+          description: data.description || "",
         });
       }
     } catch (error) {
@@ -152,6 +154,15 @@ export function OrganizationSettings() {
     
     setDeleting(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Clear all last_selected flags for this user to prevent auto-selection
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: false })
+        .eq("user_id", user.id);
+
       // Delete the organization (cascade deletes should handle related records)
       const { error } = await supabase
         .from("organizations")
@@ -165,6 +176,9 @@ export function OrganizationSettings() {
         description: "Your organization has been permanently deleted",
       });
 
+      // Clear the organization from context
+      setContextOrganization(null);
+      
       // Redirect to home page (will automatically show OrganizationSelector)
       navigate("/");
     } catch (error) {
