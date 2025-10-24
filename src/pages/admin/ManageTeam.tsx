@@ -5,7 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Users, UserCog, Shield, Eye, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Users, UserCog, Shield, Eye, Filter, UserMinus, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
 
@@ -28,6 +40,8 @@ export function ManageTeam() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchTeamMembers();
@@ -108,6 +122,50 @@ export function ManageTeam() {
     }
   };
 
+  const handleRemoveMember = async (userId: string) => {
+    if (!organizationId) return;
+
+    setRemovingUserId(userId);
+    try {
+      const { error } = await supabase
+        .from("organization_members")
+        .delete()
+        .eq("organization_id", organizationId)
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Team member removed successfully",
+      });
+
+      fetchTeamMembers();
+    } catch (error) {
+      console.error("Error removing member:", error);
+      toast({
+        title: "Error",
+        description: "Failed to remove team member",
+        variant: "destructive",
+      });
+    } finally {
+      setRemovingUserId(null);
+    }
+  };
+
+  const canRemoveMember = (targetUserId: string, targetRole: UserRole) => {
+    // Can't remove yourself
+    if (targetUserId === currentUserId) return false;
+    
+    // Can't remove owners (admin can only remove supervisor and employee)
+    if (targetRole === "owner") return false;
+    
+    // Can't remove other admins
+    if (targetRole === "admin") return false;
+    
+    return true;
+  };
+
   const getRoleIcon = (role: UserRole) => {
     switch (role) {
       case "owner":
@@ -145,9 +203,22 @@ export function ManageTeam() {
   };
 
   const filteredMembers = useMemo(() => {
-    if (filterRole === "all") return members;
-    return members.filter(m => m.role === filterRole);
-  }, [members, filterRole]);
+    let filtered = members;
+    
+    if (filterRole !== "all") {
+      filtered = filtered.filter(m => m.role === filterRole);
+    }
+    
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(m =>
+        m.users.full_name.toLowerCase().includes(query) ||
+        m.users.email.toLowerCase().includes(query)
+      );
+    }
+    
+    return filtered;
+  }, [members, filterRole, searchQuery]);
 
   if (loading) {
     return (
@@ -199,9 +270,23 @@ export function ManageTeam() {
                 </Select>
               </div>
             </div>
+            <div className="relative mt-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or email..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {filteredMembers.length === 0 && members.length > 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No team members match your filters
+                </div>
+              )}
               {filteredMembers.map((member) => (
                 <div
                   key={member.user_id}
@@ -242,6 +327,43 @@ export function ManageTeam() {
                     )}
                     {!canChangeRole(member.user_id, member.role) && member.user_id === currentUserId && (
                       <span className="text-sm text-muted-foreground">(You)</span>
+                    )}
+
+                    {canRemoveMember(member.user_id, member.role) && (
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={removingUserId === member.user_id}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove <strong>{member.users.full_name}</strong> ({member.users.email}) from the organization?
+                              <br /><br />
+                              This action cannot be undone. They will lose access to all projects and data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={removingUserId === member.user_id}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleRemoveMember(member.user_id)}
+                              disabled={removingUserId === member.user_id}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                     )}
                   </div>
                 </div>

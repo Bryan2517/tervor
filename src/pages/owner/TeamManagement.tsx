@@ -7,7 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Users, Crown, Shield, Eye, User, Search, Filter } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Users, Crown, Shield, Eye, User, Search, Filter, UserMinus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -31,6 +42,7 @@ export function TeamManagement() {
   const [organizationId, setOrganizationId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
+  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchTeamMembers();
@@ -99,6 +111,7 @@ export function TeamManagement() {
   };
 
   const handleRemoveMember = async (userId: string) => {
+    setRemovingUserId(userId);
     try {
       await supabase.rpc("remove_member", {
         p_org: organizationId,
@@ -107,7 +120,7 @@ export function TeamManagement() {
 
       toast({
         title: "Success",
-        description: "Member removed from organization",
+        description: "Team member removed successfully",
       });
 
       fetchTeamMembers();
@@ -115,9 +128,11 @@ export function TeamManagement() {
       console.error("Error removing member:", error);
       toast({
         title: "Error",
-        description: "Failed to remove member",
+        description: "Failed to remove team member",
         variant: "destructive",
       });
+    } finally {
+      setRemovingUserId(null);
     }
   };
 
@@ -272,13 +287,41 @@ export function TeamManagement() {
                             <SelectItem value="employee">Employee</SelectItem>
                           </SelectContent>
                         </Select>
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => handleRemoveMember(member.user_id)}
-                        >
-                          Remove
-                        </Button>
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              disabled={removingUserId === member.user_id}
+                            >
+                              <UserMinus className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
+                                <br /><br />
+                                This action cannot be undone. They will lose access to all projects and data.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel disabled={removingUserId === member.user_id}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleRemoveMember(member.user_id)}
+                                disabled={removingUserId === member.user_id}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </>
                     )}
                   </div>

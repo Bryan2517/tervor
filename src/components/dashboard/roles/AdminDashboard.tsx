@@ -215,25 +215,27 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
             </Card>
           </Link>
 
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Team Productivity</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-2xl font-bold">{stats.teamProductivity}%</p>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Coins className="w-4 h-4" />
-                      <span>{stats.totalPoints}</span>
+          <Link to="/admin/analytics">
+            <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Team Productivity</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-2xl font-bold">{stats.teamProductivity}%</p>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Coins className="w-4 h-4" />
+                        <span>{stats.totalPoints}</span>
+                      </div>
                     </div>
                   </div>
+                  <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-success" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
