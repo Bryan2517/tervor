@@ -6,7 +6,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, Building2, Upload } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ArrowLeft, Building2, Upload, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface Organization {
@@ -23,6 +34,7 @@ export function OrganizationSettings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -135,6 +147,37 @@ export function OrganizationSettings() {
     }
   };
 
+  const handleDeleteOrganization = async () => {
+    if (!organization) return;
+    
+    setDeleting(true);
+    try {
+      // Delete the organization (cascade deletes should handle related records)
+      const { error } = await supabase
+        .from("organizations")
+        .delete()
+        .eq("id", organization.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Organization deleted",
+        description: "Your organization has been permanently deleted",
+      });
+
+      // Redirect to home page (will automatically show OrganizationSelector)
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      toast({
+        title: "Error",
+        description: "Failed to delete organization. Please try again.",
+        variant: "destructive",
+      });
+      setDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -224,6 +267,60 @@ export function OrganizationSettings() {
               <Button onClick={handleSave} disabled={saving}>
                 {saving ? "Saving..." : "Save Changes"}
               </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-destructive">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="w-5 h-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              Permanently delete this organization and all associated data
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Once you delete an organization, there is no going back. This action will:
+              </p>
+              <ul className="text-sm text-muted-foreground list-disc list-inside space-y-1 ml-2">
+                <li>Delete all projects and tasks</li>
+                <li>Remove all team members</li>
+                <li>Delete all organization data permanently</li>
+                <li>Cancel all pending invitations</li>
+              </ul>
+              
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" disabled={deleting}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {deleting ? "Deleting..." : "Delete Organization"}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the organization
+                      <strong className="block mt-2 text-foreground">"{organization?.name}"</strong>
+                      and remove all associated data including projects, tasks, and team members.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteOrganization}
+                      disabled={deleting}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      {deleting ? "Deleting..." : "Yes, delete organization"}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </div>
           </CardContent>
         </Card>
