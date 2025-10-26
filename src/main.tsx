@@ -8,9 +8,13 @@ import { InvitePage } from "./pages/InvitePage";
 import { OrganizationSettings } from "./pages/owner/OrganizationSettings";
 import { ManageProjects } from "./pages/owner/ManageProjects";
 import { ProjectDetail } from "./pages/owner/ProjectDetail";
+import CreateProject from "./pages/owner/CreateProject";
+import CreateTask from "./pages/owner/CreateTask";
+import CreateAssignment from "./pages/owner/CreateAssignment";
 import { ProjectDetail as AdminProjectDetail } from "./pages/admin/ProjectDetail";
 import { Analytics } from "./pages/owner/Analytics";
 import { TeamManagement } from "./pages/owner/TeamManagement";
+import { Teams } from "./pages/owner/Teams";
 import { Settings } from "./pages/owner/Settings";
 import { ShopManagement } from "./pages/owner/ShopManagement";
 import { TasksOverview } from "./pages/owner/TasksOverview";
@@ -22,8 +26,12 @@ import { TimeManagement } from "./pages/admin/TimeManagement";
 import { QualityReview } from "./pages/admin/QualityReview";
 import { ShopManagement as AdminShopManagement } from "./pages/admin/ShopManagement";
 import { Settings as AdminSettings } from "./pages/admin/Settings";
+import { TeamManagement as AdminTeamManagement } from "./pages/admin/TeamManagement";
 import { Shop } from "./pages/shared/Shop";
+import { TimeLoggingReport } from "./pages/shared/TimeLoggingReport";
 import SupervisorManageTeam from "./pages/supervisor/ManageTeam";
+import SupervisorProjects from "./pages/supervisor/Projects";
+import { ProjectDetail as SupervisorProjectDetail } from "./pages/supervisor/ProjectDetail";
 import SupervisorTaskAssignment from "./pages/supervisor/TaskAssignment";
 import SupervisorProgressTracking from "./pages/supervisor/ProgressTracking";
 import SupervisorTimeManagement from "./pages/supervisor/TimeManagement";
@@ -33,6 +41,8 @@ import SupervisorTaskOverseeing from "./pages/supervisor/TaskOverseeing";
 import SupervisorCompleteToday from "./pages/supervisor/CompleteToday";
 import { Settings as SupervisorSettings } from "./pages/supervisor/Settings";
 import { Settings as EmployeeSettings } from "./pages/employee/Settings";
+import EmployeeProjects from "./pages/employee/Projects";
+import { ProjectDetail as EmployeeProjectDetail } from "./pages/employee/ProjectDetail";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 
@@ -58,8 +68,20 @@ const router = createBrowserRouter([
         element: <ManageProjects />,
       },
       {
+        path: "owner/projects/new",
+        element: <CreateProject />,
+      },
+      {
         path: "owner/projects/:projectName",
         element: <ProjectDetail />,
+      },
+      {
+        path: "owner/tasks/new",
+        element: <CreateTask />,
+      },
+      {
+        path: "owner/assignments/new",
+        element: <CreateAssignment />,
       },
       {
         path: "owner/analytics",
@@ -70,8 +92,16 @@ const router = createBrowserRouter([
         element: <TeamManagement />,
       },
       {
+        path: "owner/teams",
+        element: <Teams />,
+      },
+      {
         path: "owner/settings",
         element: <Settings />,
+      },
+      {
+        path: "owner/time-logging",
+        element: <TimeLoggingReport />,
       },
       {
         path: "owner/shop",
@@ -92,6 +122,10 @@ const router = createBrowserRouter([
       {
         path: "admin/manage-team",
         element: <ManageTeam />,
+      },
+      {
+        path: "admin/teams",
+        element: <AdminTeamManagement />,
       },
       {
         path: "admin/task-assignment",
@@ -126,12 +160,32 @@ const router = createBrowserRouter([
         element: <AdminSettings />,
       },
       {
+        path: "admin/time-logging",
+        element: <TimeLoggingReport />,
+      },
+      {
         path: "supervisor/shop",
         element: <Shop />,
       },
       {
         path: "employee/shop",
         element: <Shop />,
+      },
+      {
+        path: "employee/projects",
+        element: <EmployeeProjects />,
+      },
+      {
+        path: "employee/projects/:projectName",
+        element: <EmployeeProjectDetail />,
+      },
+      {
+        path: "supervisor/projects",
+        element: <SupervisorProjects />,
+      },
+      {
+        path: "supervisor/projects/:projectName",
+        element: <SupervisorProjectDetail />,
       },
       {
         path: "supervisor/manage-team",

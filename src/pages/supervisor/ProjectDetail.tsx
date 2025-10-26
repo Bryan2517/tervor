@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -68,12 +68,7 @@ interface Assignment {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   due_date?: string;
   created_at: string;
-  assignee_id?: string;
   completion_points?: number;
-  assignee?: {
-    full_name: string;
-    email: string;
-  };
 }
 
 interface ProjectStats {
@@ -93,9 +88,8 @@ export function ProjectDetail() {
   const { organization } = useOrganization();
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [myAssignments, setMyAssignments] = useState<Assignment[]>([]);
   const [employees, setEmployees] = useState<Array<{user_id: string, users: {full_name: string}}>>([]);
-  const [supervisors, setSupervisors] = useState<Array<{user_id: string, users: {full_name: string}}>>([]);
   const [stats, setStats] = useState<ProjectStats>({
     totalTasks: 0,
     completedTasks: 0,
@@ -108,21 +102,12 @@ export function ProjectDetail() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<string>("tasks");
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
-  const [assignmentDialogOpen, setAssignmentDialogOpen] = useState(false);
   const [newTask, setNewTask] = useState({
     title: "",
     description: "",
     priority: "medium" as const,
     due_date: "",
     assignee_id: "",
-    completion_points: 0,
-  });
-  const [newAssignment, setNewAssignment] = useState({
-    title: "",
-    description: "",
-    priority: "medium" as const,
-    due_date: "",
-    assigned_supervisor_id: "",
     completion_points: 0,
   });
 
@@ -137,31 +122,67 @@ export function ProjectDetail() {
     if (!organization) return;
     
     try {
-      // Fetch employees
-      const { data: employeesData } = await supabase
-        .from("organization_members")
-        .select("user_id, users!inner(full_name)")
-        .eq("organization_id", organization.id)
-        .eq("role", "employee");
-      
-      if (employeesData) setEmployees(employeesData as any);
+      // Get current user (supervisor)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // Fetch supervisors
-      const { data: supervisorsData } = await supabase
-        .from("organization_members")
-        .select("user_id, users!inner(full_name)")
+      // Find the team where this supervisor is the lead
+      // @ts-ignore - teams table will be available after migration
+      const { data: supervisorTeam } = await (supabase as any)
+        .from("teams")
+        .select("id")
         .eq("organization_id", organization.id)
-        .eq("role", "supervisor");
-      
-      if (supervisorsData) setSupervisors(supervisorsData as any);
+        .eq("supervisor_id", user.id)
+        .single();
+
+      if (!supervisorTeam) {
+        // Supervisor doesn't have a team yet, show no employees
+        setEmployees([]);
+        return;
+      }
+
+      // Get employees who are members of this supervisor's team
+      // @ts-ignore - team_members table will be available after migration
+      const { data: teamMembersData } = await (supabase as any)
+        .from("team_members")
+        .select(`
+          user_id,
+          users!inner(full_name)
+        `)
+        .eq("team_id", supervisorTeam.id);
+
+      // Filter to only include employees (not supervisors)
+      if (teamMembersData) {
+        const { data: orgMembers } = await supabase
+          .from("organization_members")
+          .select("user_id, role")
+          .eq("organization_id", organization.id)
+          .eq("role", "employee")
+          .in("user_id", teamMembersData.map(m => m.user_id));
+
+        if (orgMembers) {
+          const employeeIds = orgMembers.map(m => m.user_id);
+          const filteredEmployees = teamMembersData.filter(tm => 
+            employeeIds.includes(tm.user_id)
+          );
+          setEmployees(filteredEmployees as any);
+        }
+      }
     } catch (error) {
       console.error("Error fetching team members:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load team members",
+        variant: "destructive",
+      });
     }
   };
 
   const fetchProjectDetails = async () => {
     try {
-      // Fetch project details
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data: projectData, error: projectError } = await supabase
         .from("projects")
         .select("*")
@@ -171,7 +192,7 @@ export function ProjectDetail() {
       if (projectError) throw projectError;
       setProject(projectData);
 
-      // Fetch project tasks with assignee information
+      // Fetch tasks
       const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
         .select(`
@@ -192,46 +213,32 @@ export function ProjectDetail() {
 
       if (tasksError) throw tasksError;
       
-      // Calculate overdue tasks
       const tasksWithOverdueStatus = (tasksData || []).map(task => {
         if (task.status !== 'done' && task.due_date && new Date(task.due_date) < new Date()) {
-          return {
-            ...task,
-            status: 'overdue' as const
-          };
+          return { ...task, status: 'overdue' as const };
         }
         return task;
       });
 
       setTasks(tasksWithOverdueStatus);
 
-      // Fetch assignments
-      const { data: assignmentsData, error: assignmentsError } = await supabase
+      // Fetch my assignments (assignments assigned to me)
+      const { data: myAssignmentsData } = await supabase
         .from("tasks")
-        .select(`
-          id,
-          title,
-          description,
-          status,
-          priority,
-          due_date,
-          created_at,
-          assignee_id,
-          completion_points,
-          assignee:users!tasks_assignee_id_fkey(full_name, email)
-        `)
+        .select("id, title, description, status, priority, due_date, created_at, completion_points")
         .eq("project_id", projectData.id)
         .eq("task_type", "assignment")
+        .eq("assignee_id", user.id)
         .order("created_at", { ascending: false });
 
-      if (!assignmentsError && assignmentsData) {
-        const assignmentsWithOverdue = assignmentsData.map(assignment => {
+      if (myAssignmentsData) {
+        const assignmentsWithOverdue = myAssignmentsData.map(assignment => {
           if (assignment.status !== 'done' && assignment.due_date && new Date(assignment.due_date) < new Date()) {
             return { ...assignment, status: 'overdue' as const };
           }
           return assignment;
         });
-        setAssignments(assignmentsWithOverdue as any);
+        setMyAssignments(assignmentsWithOverdue as any);
       }
 
       // Calculate statistics
@@ -239,8 +246,8 @@ export function ProjectDetail() {
       const completedTasks = tasksWithOverdueStatus.filter(task => task.status === 'done').length;
       const inProgressTasks = tasksWithOverdueStatus.filter(task => task.status === 'in_progress').length;
       const overdueTasks = tasksWithOverdueStatus.filter(task => task.status === 'overdue').length;
-      const totalAssignments = assignmentsData?.length || 0;
-      const completedAssignments = assignmentsData?.filter(a => a.status === 'done').length || 0;
+      const totalAssignments = myAssignmentsData?.length || 0;
+      const completedAssignments = myAssignmentsData?.filter(a => a.status === 'done').length || 0;
       const progressPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       setStats({
@@ -385,76 +392,6 @@ export function ProjectDetail() {
     }
   };
 
-  const handleCreateAssignment = async () => {
-    if (!project || !newAssignment.title.trim()) {
-      toast({
-        title: "Error",
-        description: "Assignment title is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!newAssignment.due_date) {
-      toast({
-        title: "Error",
-        description: "Due date is required",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!newAssignment.assigned_supervisor_id || newAssignment.assigned_supervisor_id === "unassigned") {
-      toast({
-        title: "Error",
-        description: "Please assign the assignment to a supervisor",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .insert({
-          title: newAssignment.title,
-          description: newAssignment.description,
-          priority: newAssignment.priority,
-          due_date: newAssignment.due_date,
-          assignee_id: newAssignment.assigned_supervisor_id,
-          completion_points: newAssignment.completion_points || 0,
-          project_id: project.id,
-          status: "todo",
-          task_type: "assignment",
-        });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Assignment created successfully",
-      });
-
-      setAssignmentDialogOpen(false);
-      setNewAssignment({
-        title: "",
-        description: "",
-        priority: "medium",
-        due_date: "",
-        assigned_supervisor_id: "",
-        completion_points: 0,
-      });
-      fetchProjectDetails();
-    } catch (error) {
-      console.error("Error creating assignment:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create assignment",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleDeleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase
@@ -480,31 +417,6 @@ export function ProjectDetail() {
     }
   };
 
-  const handleDeleteAssignment = async (assignmentId: string) => {
-    try {
-      const { error } = await supabase
-        .from("tasks")
-        .delete()
-        .eq("id", assignmentId);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Assignment deleted successfully",
-      });
-
-      fetchProjectDetails();
-    } catch (error) {
-      console.error("Error deleting assignment:", error);
-      toast({
-        title: "Error",
-        description: "Failed to delete assignment",
-        variant: "destructive",
-      });
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -519,7 +431,7 @@ export function ProjectDetail() {
         <div className="text-center">
           <h2 className="text-2xl font-semibold mb-2">Project not found</h2>
           <p className="text-muted-foreground mb-4">The project you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate("/admin/progress-tracking")}>
+          <Button onClick={() => navigate("/supervisor/progress-tracking")}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Progress Tracking
           </Button>
@@ -534,7 +446,7 @@ export function ProjectDetail() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="icon" onClick={() => navigate("/admin/progress-tracking")}>
+              <Button variant="ghost" size="icon" onClick={() => navigate("/supervisor/progress-tracking")}>
                 <ArrowLeft className="w-5 h-5" />
               </Button>
               <div>
@@ -603,20 +515,16 @@ export function ProjectDetail() {
                   
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total Tasks</span>
+                      <span className="text-muted-foreground">My Assignments</span>
+                      <span className="font-medium">{stats.totalAssignments}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Team Tasks</span>
                       <span className="font-medium">{stats.totalTasks}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Completed</span>
                       <span className="font-medium text-green-600">{stats.completedTasks}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">In Progress</span>
-                      <span className="font-medium text-blue-600">{stats.inProgressTasks}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Overdue</span>
-                      <span className="font-medium text-red-600">{stats.overdueTasks}</span>
                     </div>
                   </div>
                 </div>
@@ -630,11 +538,11 @@ export function ProjectDetail() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="tasks" className="flex items-center gap-2">
               <Target className="w-4 h-4" />
-              Tasks ({stats.totalTasks})
+              Team Tasks ({stats.totalTasks})
             </TabsTrigger>
             <TabsTrigger value="assignments" className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              Assignments ({stats.totalAssignments})
+              My Assignments ({stats.totalAssignments})
             </TabsTrigger>
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4" />
@@ -856,138 +764,23 @@ export function ProjectDetail() {
             </Card>
           </TabsContent>
 
-          {/* Assignments Tab */}
+          {/* My Assignments Tab */}
           <TabsContent value="assignments" className="space-y-4">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Supervisor Assignments</h2>
-              <Dialog open={assignmentDialogOpen} onOpenChange={setAssignmentDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Assignment
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Create New Assignment</DialogTitle>
-                    <DialogDescription>
-                      Create an assignment and assign it to a supervisor with reward points
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="assignment-title">
-                        Assignment Title <span className="text-destructive">*</span>
-                      </Label>
-                      <Input
-                        id="assignment-title"
-                        value={newAssignment.title}
-                        onChange={(e) => setNewAssignment({ ...newAssignment, title: e.target.value })}
-                        placeholder="Enter assignment title"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="assignment-description">Description</Label>
-                      <Textarea
-                        id="assignment-description"
-                        value={newAssignment.description}
-                        onChange={(e) => setNewAssignment({ ...newAssignment, description: e.target.value })}
-                        placeholder="Enter assignment description"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="assignment-priority">Priority</Label>
-                        <Select
-                          value={newAssignment.priority}
-                          onValueChange={(value: any) => setNewAssignment({ ...newAssignment, priority: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="low">Low</SelectItem>
-                            <SelectItem value="medium">Medium</SelectItem>
-                            <SelectItem value="high">High</SelectItem>
-                            <SelectItem value="urgent">Urgent</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="assignment-due-date">
-                          Due Date <span className="text-destructive">*</span>
-                        </Label>
-                        <Input
-                          id="assignment-due-date"
-                          type="date"
-                          value={newAssignment.due_date}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, due_date: e.target.value })}
-                          min={new Date().toISOString().split('T')[0]}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="assignment-supervisor">
-                        Assign to Supervisor <span className="text-destructive">*</span>
-                      </Label>
-                      <Select
-                        value={newAssignment.assigned_supervisor_id || "unassigned"}
-                        onValueChange={(value) => setNewAssignment({ ...newAssignment, assigned_supervisor_id: value === "unassigned" ? "" : value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a supervisor" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="unassigned">Select a supervisor...</SelectItem>
-                          {supervisors.map((sup) => (
-                            <SelectItem key={sup.user_id} value={sup.user_id}>
-                              {sup.users.full_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="assignment-points">Completion Points</Label>
-                      <div className="relative">
-                        <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          id="assignment-points"
-                          type="number"
-                          min="0"
-                          value={newAssignment.completion_points}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, completion_points: parseInt(e.target.value) || 0 })}
-                          placeholder="Points to award"
-                          className="pl-10"
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">Points awarded to the supervisor when assignment is completed</p>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setAssignmentDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button onClick={handleCreateAssignment}>Create Assignment</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <h2 className="text-lg font-semibold">My Assignments</h2>
             </div>
 
             <Card>
               <CardContent className="pt-6">
                 <div className="space-y-3">
-                  {assignments.length === 0 ? (
+                  {myAssignments.length === 0 ? (
                     <div className="text-center py-12">
                       <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                      <p className="text-muted-foreground font-medium mb-2">No assignments yet</p>
-                      <p className="text-sm text-muted-foreground">Create your first assignment for supervisors</p>
+                      <p className="text-muted-foreground font-medium mb-2">No assignments</p>
+                      <p className="text-sm text-muted-foreground">You don't have any assignments in this project</p>
                     </div>
                   ) : (
-                    assignments.map((assignment) => (
+                    myAssignments.map((assignment) => (
                       <Card key={assignment.id} className="hover:shadow-md transition-shadow">
                         <CardContent className="p-4">
                           <div className="flex items-start justify-between">
@@ -1001,12 +794,6 @@ export function ProjectDetail() {
                                   </p>
                                 )}
                                 <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                  {assignment.assignee && (
-                                    <div className="flex items-center gap-1">
-                                      <User className="w-3 h-3" />
-                                      <span>{assignment.assignee.full_name}</span>
-                                    </div>
-                                  )}
                                   {assignment.completion_points && assignment.completion_points > 0 && (
                                     <div className="flex items-center gap-1 text-amber-600">
                                       <Coins className="w-3 h-3" />
@@ -1031,34 +818,6 @@ export function ProjectDetail() {
                               <Badge className={`${getStatusColor(assignment.status)} text-xs`}>
                                 {formatStatusText(assignment.status)}
                               </Badge>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete Assignment</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to delete "{assignment.title}"? This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={() => handleDeleteAssignment(assignment.id)}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                    >
-                                      Delete
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
                             </div>
                           </div>
                         </CardContent>
@@ -1075,7 +834,7 @@ export function ProjectDetail() {
             <Card>
               <CardHeader>
                 <CardTitle>Project Progress Report</CardTitle>
-                <CardDescription>Overview of project completion and team performance</CardDescription>
+                <CardDescription>Overview of team performance and my assignments</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1123,7 +882,7 @@ export function ProjectDetail() {
                   <div>
                     <h3 className="font-semibold mb-4 flex items-center gap-2">
                       <Users className="w-5 h-5" />
-                      Assignments for Supervisors
+                      My Assignments
                     </h3>
                     <div className="space-y-2">
                       <div className="flex justify-between">
@@ -1131,11 +890,11 @@ export function ProjectDetail() {
                         <span className="font-medium">{stats.totalAssignments}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Completed Assignments:</span>
+                        <span className="text-sm text-muted-foreground">Completed:</span>
                         <span className="font-medium text-green-600">{stats.completedAssignments}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-sm text-muted-foreground">Pending Assignments:</span>
+                        <span className="text-sm text-muted-foreground">Pending:</span>
                         <span className="font-medium text-orange-600">
                           {(stats.totalAssignments || 0) - (stats.completedAssignments || 0)}
                         </span>
@@ -1146,7 +905,7 @@ export function ProjectDetail() {
                   <div>
                     <h3 className="font-semibold mb-4 flex items-center gap-2">
                       <TrendingUp className="w-5 h-5" />
-                      Overall Progress
+                      Team Progress
                     </h3>
                     <div className="space-y-3">
                       <div>
@@ -1170,3 +929,4 @@ export function ProjectDetail() {
     </div>
   );
 }
+

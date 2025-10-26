@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Users, Mail, Calendar } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface TeamMember {
   user_id: string;
@@ -27,29 +28,57 @@ interface TaskStats {
 
 export default function SupervisorDirectReports() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [taskStats, setTaskStats] = useState<Record<string, TaskStats>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchDirectReports();
-  }, []);
+    if (organization) {
+      fetchDirectReports();
+    }
+  }, [organization]);
 
   const fetchDirectReports = async () => {
+    if (!organization) return;
+    
     try {
+      // Get current user (supervisor)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data: orgMember } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
+      // Find the team where this supervisor is the lead
+      // @ts-ignore - teams table will be available after migration
+      const { data: supervisorTeam } = await (supabase as any)
+        .from("teams")
+        .select("id")
+        .eq("organization_id", organization.id)
+        .eq("supervisor_id", user.id)
+        .maybeSingle();
 
-      if (!orgMember) return;
+      if (!supervisorTeam) {
+        // Supervisor doesn't have a team yet, show no employees
+        setTeamMembers([]);
+        setLoading(false);
+        return;
+      }
 
-      // Fetch all employees in the organization
+      // Get employees who are members of this supervisor's team
+      // @ts-ignore - team_members table will be available after migration
+      const { data: teamMembersData } = await (supabase as any)
+        .from("team_members")
+        .select("user_id")
+        .eq("team_id", supervisorTeam.id);
+
+      if (!teamMembersData || teamMembersData.length === 0) {
+        setTeamMembers([]);
+        setLoading(false);
+        return;
+      }
+
+      const employeeIds = teamMembersData.map(m => m.user_id);
+
+      // Fetch employee details from organization_members
       const { data, error } = await supabase
         .from("organization_members")
         .select(`
@@ -63,8 +92,9 @@ export default function SupervisorDirectReports() {
             avatar_url
           )
         `)
-        .eq("organization_id", orgMember.organization_id)
-        .eq("role", "employee");
+        .eq("organization_id", organization.id)
+        .eq("role", "employee")
+        .in("user_id", employeeIds);
 
       if (error) throw error;
       setTeamMembers(data as TeamMember[]);
@@ -76,7 +106,7 @@ export default function SupervisorDirectReports() {
           const { data: tasks } = await supabase
             .from("tasks")
             .select("status, project:projects!inner(organization_id)")
-            .eq("project.organization_id", orgMember.organization_id)
+            .eq("project.organization_id", organization.id)
             .eq("assignee_id", member.user_id);
 
           stats[member.user_id] = {

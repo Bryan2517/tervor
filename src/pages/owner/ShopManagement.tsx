@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Plus, Gift, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Reward {
   id: string;
@@ -23,9 +24,9 @@ interface Reward {
 export function ShopManagement() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { organization } = useOrganization();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newReward, setNewReward] = useState({
     title: "",
@@ -36,33 +37,23 @@ export function ShopManagement() {
   });
 
   useEffect(() => {
-    fetchRewards();
-  }, []);
+    if (organization) {
+      fetchRewards();
+    }
+  }, [organization]);
 
   const fetchRewards = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      const { data } = await supabase
+        .from("rewards")
+        .select("*")
+        .eq("organization_id", organization.id)
+        .order("points_cost");
 
-      const { data: orgData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
-        .single();
-
-      if (orgData) {
-        setOrganizationId(orgData.organization_id);
-        
-        const { data } = await supabase
-          .from("rewards")
-          .select("*")
-          .eq("organization_id", orgData.organization_id)
-          .order("points_cost");
-
-        if (data) {
-          setRewards(data);
-        }
+      if (data) {
+        setRewards(data);
       }
     } catch (error) {
       console.error("Error fetching rewards:", error);
@@ -72,6 +63,15 @@ export function ShopManagement() {
   };
 
   const handleCreateReward = async () => {
+    if (!organization) {
+      toast({
+        title: "Error",
+        description: "No organization selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!newReward.title.trim()) {
       toast({
         title: "Error",
@@ -95,7 +95,7 @@ export function ShopManagement() {
         .from("rewards")
         .insert({
           ...newReward,
-          organization_id: organizationId,
+          organization_id: organization.id,
           stock: newReward.stock > 0 ? newReward.stock : null,
         });
 

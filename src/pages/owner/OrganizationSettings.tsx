@@ -17,7 +17,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Building2, Upload, Trash2 } from "lucide-react";
+import { ArrowLeft, Building2, Upload, Trash2, Clock } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
@@ -26,6 +26,10 @@ interface Organization {
   name: string;
   description?: string;
   logo_url?: string;
+  work_start_time?: string;
+  work_end_time?: string;
+  early_threshold_minutes?: number;
+  late_threshold_minutes?: number;
 }
 
 export function OrganizationSettings() {
@@ -40,6 +44,10 @@ export function OrganizationSettings() {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
+    work_start_time: "09:00",
+    work_end_time: "17:00",
+    early_threshold_minutes: 15,
+    late_threshold_minutes: 15,
   });
 
   useEffect(() => {
@@ -59,10 +67,15 @@ export function OrganizationSettings() {
         .single();
 
       if (data) {
-        setOrganization(data as Organization);
+        const orgData = data as any;
+        setOrganization(orgData as Organization);
         setFormData({
-          name: data.name || "",
-          description: data.description || "",
+          name: orgData.name || "",
+          description: orgData.description || "",
+          work_start_time: orgData.work_start_time ? orgData.work_start_time.substring(0, 5) : "09:00",
+          work_end_time: orgData.work_end_time ? orgData.work_end_time.substring(0, 5) : "17:00",
+          early_threshold_minutes: orgData.early_threshold_minutes || 15,
+          late_threshold_minutes: orgData.late_threshold_minutes || 15,
         });
       }
     } catch (error) {
@@ -123,15 +136,40 @@ export function OrganizationSettings() {
     
     setSaving(true);
     try {
-      const { error } = await supabase
+      // First, try to save with work hours
+      const { error: fullUpdateError } = await supabase
         .from("organizations")
         .update({
           name: formData.name,
           description: formData.description,
+          work_start_time: `${formData.work_start_time}:00`,
+          work_end_time: `${formData.work_end_time}:00`,
+          early_threshold_minutes: formData.early_threshold_minutes,
+          late_threshold_minutes: formData.late_threshold_minutes,
         })
         .eq("id", organization.id);
 
-      if (error) throw error;
+      // If work hours columns don't exist, fall back to basic update
+      if (fullUpdateError && fullUpdateError.code === 'PGRST204') {
+        const { error: basicUpdateError } = await supabase
+          .from("organizations")
+          .update({
+            name: formData.name,
+            description: formData.description,
+          })
+          .eq("id", organization.id);
+
+        if (basicUpdateError) throw basicUpdateError;
+
+        toast({
+          title: "Partial Save",
+          description: "Basic settings saved. Work hours require database migration. Please apply the migration to enable work hours configuration.",
+          variant: "default",
+        });
+        return;
+      }
+
+      if (fullUpdateError) throw fullUpdateError;
 
       toast({
         title: "Settings saved",
@@ -272,6 +310,89 @@ export function OrganizationSettings() {
                   </label>
                 </Button>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Working Hours Configuration
+            </CardTitle>
+            <CardDescription>
+              Set standard work hours and attendance thresholds for your organization
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="work_start_time">Work Start Time</Label>
+                <Input
+                  id="work_start_time"
+                  type="time"
+                  value={formData.work_start_time}
+                  onChange={(e) => setFormData({ ...formData, work_start_time: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Standard clock-in time for employees
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="work_end_time">Work End Time</Label>
+                <Input
+                  id="work_end_time"
+                  type="time"
+                  value={formData.work_end_time}
+                  onChange={(e) => setFormData({ ...formData, work_end_time: e.target.value })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Standard clock-out time for employees
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <Label htmlFor="early_threshold">Early Arrival Threshold (minutes)</Label>
+                <Input
+                  id="early_threshold"
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={formData.early_threshold_minutes}
+                  onChange={(e) => setFormData({ ...formData, early_threshold_minutes: parseInt(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Clock-in this many minutes before start time = early
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="late_threshold">Late Arrival Threshold (minutes)</Label>
+                <Input
+                  id="late_threshold"
+                  type="number"
+                  min="0"
+                  max="60"
+                  value={formData.late_threshold_minutes}
+                  onChange={(e) => setFormData({ ...formData, late_threshold_minutes: parseInt(e.target.value) || 0 })}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Clock-in this many minutes after start time = late
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-muted/50 p-4 rounded-lg">
+              <p className="text-sm font-medium mb-2">How it works:</p>
+              <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+                <li><strong>Early:</strong> Clock-in before {formData.work_start_time} minus {formData.early_threshold_minutes} minutes</li>
+                <li><strong>On Time:</strong> Clock-in within {formData.early_threshold_minutes} minutes before to {formData.late_threshold_minutes} minutes after {formData.work_start_time}</li>
+                <li><strong>Late:</strong> Clock-in more than {formData.late_threshold_minutes} minutes after {formData.work_start_time}</li>
+                <li><strong>Overtime:</strong> Clock-out after {formData.work_end_time}</li>
+              </ul>
             </div>
 
             <div className="flex justify-end gap-4 pt-4">

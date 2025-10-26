@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Target, Clock, CheckCircle2, Filter, Search, AlertCircle, Circle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type TaskStatus = "todo" | "in_progress" | "review" | "done" | "overdue";
 type TaskPriority = "low" | "medium" | "high";
@@ -39,6 +40,7 @@ interface TaskStats {
 
 export default function SupervisorTaskAssignment() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats>({
     total: 0,
@@ -54,8 +56,10 @@ export default function SupervisorTaskAssignment() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (organization) {
+      fetchTasks();
+    }
+  }, [organization]);
 
   // Calculate stats whenever tasks change
   useEffect(() => {
@@ -132,39 +136,9 @@ export default function SupervisorTaskAssignment() {
   };
 
   const fetchTasks = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log("No user found");
-        setLoading(false);
-        return;
-      }
-
-      const { data: orgMember, error: orgError } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
-
-      if (orgError) {
-        console.error("Error fetching organization:", orgError);
-        toast({
-          title: "Error",
-          description: "Failed to load organization data",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      if (!orgMember) {
-        console.log("No organization found for supervisor");
-        setTasks([]);
-        setLoading(false);
-        return;
-      }
-
       const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
         .select(`
@@ -178,7 +152,7 @@ export default function SupervisorTaskAssignment() {
           project:projects!inner(name, organization_id),
           assignee:users!tasks_assignee_id_fkey(full_name)
         `)
-        .eq("project.organization_id", orgMember.organization_id)
+        .eq("project.organization_id", organization.id)
         .order("created_at", { ascending: false });
 
       if (tasksError) {

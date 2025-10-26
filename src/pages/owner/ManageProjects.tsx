@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Plus, FolderOpen, Users, Calendar } from "lucide-react";
+import { ArrowLeft, Plus, FolderOpen, Users, Calendar, Coins } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Project {
   id: string;
@@ -26,39 +28,52 @@ interface Project {
 export function ManageProjects() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { organization } = useOrganization();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [admins, setAdmins] = useState<Array<{user_id: string, users: {full_name: string}}>>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string>("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newProject, setNewProject] = useState({
     name: "",
     description: "",
+    assigned_admin_id: "",
+    completion_points: 0,
   });
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (organization) {
+      fetchProjects();
+      fetchAdmins();
+    }
+  }, [organization]);
+
+  const fetchAdmins = async () => {
+    if (!organization) return;
+    
+    try {
+      const { data } = await supabase
+        .from("organization_members")
+        .select("user_id, users!inner(full_name)")
+        .eq("organization_id", organization.id)
+        .eq("role", "admin");
+      
+      if (data) {
+        setAdmins(data as any);
+      }
+    } catch (error) {
+      console.error("Error fetching admins:", error);
+    }
+  };
 
   const fetchProjects = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
-        .single();
-
-      if (orgData) {
-        setOrganizationId(orgData.organization_id);
-        
-        const { data } = await supabase
-          .from("projects")
-          .select("*")
-          .eq("organization_id", orgData.organization_id)
-          .order("created_at", { ascending: false });
+      const { data } = await supabase
+        .from("projects")
+        .select("*")
+        .eq("organization_id", organization.id)
+        .order("created_at", { ascending: false });
 
         if (data) {
           // Fetch task counts for each project including due dates for overdue calculation
@@ -91,8 +106,7 @@ export function ManageProjects() {
             })
           );
 
-          setProjects(projectsWithStats);
-        }
+        setProjects(projectsWithStats);
       }
     } catch (error) {
       console.error("Error fetching projects:", error);
@@ -111,6 +125,15 @@ export function ManageProjects() {
       return;
     }
 
+    if (!organization) {
+      toast({
+        title: "Error",
+        description: "No organization selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -120,8 +143,10 @@ export function ManageProjects() {
         .insert({
           name: newProject.name,
           description: newProject.description,
-          organization_id: organizationId,
+          organization_id: organization.id,
           owner_id: user.id,
+          assigned_admin_id: newProject.assigned_admin_id || null,
+          completion_points: newProject.completion_points || 0,
         });
 
       if (error) throw error;
@@ -132,7 +157,7 @@ export function ManageProjects() {
       });
 
       setDialogOpen(false);
-      setNewProject({ name: "", description: "" });
+      setNewProject({ name: "", description: "", assigned_admin_id: "", completion_points: 0 });
       fetchProjects();
     } catch (error) {
       console.error("Error creating project:", error);
@@ -166,9 +191,13 @@ export function ManageProjects() {
                 <p className="text-sm text-muted-foreground">Create and manage organization projects</p>
               </div>
             </div>
+            <Button onClick={() => navigate("/owner/projects/new")}>
+              <Plus className="w-4 h-4 mr-2" />
+              New Project
+            </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button style={{ display: 'none' }}>
                   <Plus className="w-4 h-4 mr-2" />
                   New Project
                 </Button>
@@ -200,6 +229,41 @@ export function ManageProjects() {
                       rows={3}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="assigned-admin">Assign to Admin (Optional)</Label>
+                    <Select
+                      value={newProject.assigned_admin_id}
+                      onValueChange={(value) => setNewProject({ ...newProject, assigned_admin_id: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select an admin" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">No Admin</SelectItem>
+                        {admins.map((admin) => (
+                          <SelectItem key={admin.user_id} value={admin.user_id}>
+                            {admin.users.full_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="completion-points">Completion Points</Label>
+                    <div className="relative">
+                      <Coins className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="completion-points"
+                        type="number"
+                        min="0"
+                        value={newProject.completion_points}
+                        onChange={(e) => setNewProject({ ...newProject, completion_points: parseInt(e.target.value) || 0 })}
+                        placeholder="Points to award on completion"
+                        className="pl-10"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">Points awarded to the assigned admin when the project is completed</p>
+                  </div>
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -222,7 +286,7 @@ export function ManageProjects() {
               <p className="text-sm text-muted-foreground mb-4">
                 Get started by creating your first project
               </p>
-              <Button onClick={() => setDialogOpen(true)}>
+              <Button onClick={() => navigate("/owner/projects/new")}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Project
               </Button>

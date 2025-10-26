@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Target, CheckCircle2, Circle, Clock, AlertCircle, Filter, Search } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Task {
   id: string;
@@ -35,6 +36,7 @@ interface TaskStats {
 
 export function TasksOverview() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats>({
     total: 0,
@@ -49,8 +51,10 @@ export function TasksOverview() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (organization) {
+      fetchTasks();
+    }
+  }, [organization]);
 
   const checkAndUpdateOverdueTasks = async (tasksData: Task[]) => {
     const now = new Date();
@@ -89,19 +93,9 @@ export function TasksOverview() {
   };
 
   const fetchTasks = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "owner")
-        .single();
-
-      if (!orgData) return;
-
       const { data: tasksData } = await supabase
         .from("tasks")
         .select(`
@@ -109,7 +103,7 @@ export function TasksOverview() {
           projects!inner(name, organization_id),
           users!tasks_assignee_id_fkey(full_name)
         `)
-        .eq("projects.organization_id", orgData.organization_id)
+        .eq("projects.organization_id", organization.id)
         .order("created_at", { ascending: false });
 
       if (tasksData) {

@@ -3,9 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowLeft, ShoppingCart, Gift, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Reward {
   id: string;
@@ -17,52 +19,70 @@ interface Reward {
 }
 
 export function Shop() {
+  const { organization } = useOrganization();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [userPoints, setUserPoints] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
+  const [selectedReward, setSelectedReward] = useState<Reward | null>(null);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   useEffect(() => {
-    fetchShopData();
-  }, []);
+    console.log("Shop: useEffect triggered, organization:", organization);
+    if (organization) {
+      fetchShopData();
+    } else {
+      setLoading(false);
+    }
+  }, [organization]);
 
   const fetchShopData = async () => {
+    if (!organization) {
+      console.log("Shop: No organization available");
+      setLoading(false);
+      return;
+    }
+    
+    console.log("Shop: Fetching data for organization:", organization.id, organization.name);
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) {
+        console.log("Shop: No user found");
+        setLoading(false);
+        return;
+      }
 
-      // Get organization
-      const { data: memberData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .single();
-
-      if (!memberData) return;
-      setOrganizationId(memberData.organization_id);
+      console.log("Shop: User ID:", user.id);
 
       // Fetch rewards
       const { data: rewardsData, error: rewardsError } = await supabase
         .from("rewards")
         .select("*")
-        .eq("organization_id", memberData.organization_id)
+        .eq("organization_id", organization.id)
         .eq("active", true)
         .order("points_cost");
+
+      console.log("Shop: Rewards query result:", { rewardsData, rewardsError });
 
       if (rewardsError) throw rewardsError;
       setRewards(rewardsData || []);
 
-      // Fetch user points
+      // Fetch user points (sum all deltas - positive for earn, negative for spend)
       const { data: pointsData, error: pointsError } = await supabase
         .from("points_ledger")
-        .select("balance_after")
-        .eq("user_id", user.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .select("delta")
+        .eq("user_id", user.id);
+
+      console.log("Shop: Points query result:", { pointsData, pointsError });
 
       if (pointsError) throw pointsError;
-      setUserPoints(pointsData?.balance_after || 0);
+      
+      // Calculate total points by summing all deltas
+      const totalPoints = (pointsData || []).reduce((sum, transaction) => {
+        return sum + transaction.delta;
+      }, 0);
+      
+      setUserPoints(totalPoints);
     } catch (error) {
       console.error("Error fetching shop data:", error);
       toast({
@@ -75,7 +95,7 @@ export function Shop() {
     }
   };
 
-  const handleRedeem = async (reward: Reward) => {
+  const handleRedeemClick = (reward: Reward) => {
     if (userPoints < reward.points_cost) {
       toast({
         title: "Insufficient Points",
@@ -94,31 +114,54 @@ export function Shop() {
       return;
     }
 
+    // Open confirmation dialog
+    setSelectedReward(reward);
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmRedeem = async () => {
+    if (!selectedReward) return;
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Deduct points from user's balance
+      const { error: pointsError } = await supabase
+        .from("points_ledger")
+        .insert({
+          user_id: user.id,
+          delta: -selectedReward.points_cost, // Negative delta for spending points
+          reason_code: "reward_redemption",
+        });
+
+      if (pointsError) throw pointsError;
 
       // Create redemption
       const { error: redemptionError } = await supabase
         .from("redemptions")
         .insert({
           user_id: user.id,
-          reward_id: reward.id,
-          points_spent: reward.points_cost,
+          reward_id: selectedReward.id,
+          points_spent: selectedReward.points_cost,
           status: "pending",
         });
 
       if (redemptionError) throw redemptionError;
 
       // Update stock if applicable
-      if (reward.stock !== null) {
+      if (selectedReward.stock !== null) {
         const { error: stockError } = await supabase
           .from("rewards")
-          .update({ stock: reward.stock - 1 })
-          .eq("id", reward.id);
+          .update({ stock: selectedReward.stock - 1 })
+          .eq("id", selectedReward.id);
 
         if (stockError) throw stockError;
       }
+
+      // Close dialog and reset
+      setShowConfirmDialog(false);
+      setSelectedReward(null);
 
       toast({
         title: "Success",
@@ -133,6 +176,8 @@ export function Shop() {
         description: "Failed to redeem reward",
         variant: "destructive",
       });
+      setShowConfirmDialog(false);
+      setSelectedReward(null);
     }
   };
 
@@ -213,7 +258,7 @@ export function Shop() {
                         </p>
                       )}
                       <Button
-                        onClick={() => handleRedeem(reward)}
+                        onClick={() => handleRedeemClick(reward)}
                         disabled={!canRedeem}
                         className="w-full"
                       >
@@ -228,6 +273,34 @@ export function Shop() {
           </div>
         )}
       </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Redemption</AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedReward && (
+                <div className="space-y-2">
+                  <p>Are you sure you want to redeem <strong>{selectedReward.title}</strong>?</p>
+                  <p className="text-lg font-semibold text-primary">
+                    This will cost {selectedReward.points_cost} points
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Your balance after redemption: {userPoints - selectedReward.points_cost} points
+                  </p>
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRedeem}>
+              Confirm Redemption
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

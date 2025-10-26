@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ArrowLeft, FolderOpen, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Project {
   id: string;
@@ -26,27 +27,20 @@ interface Project {
 export function ProgressTracking() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { organization } = useOrganization();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProjects();
-  }, []);
+    if (organization) {
+      fetchProjects();
+    }
+  }, [organization]);
 
   const fetchProjects = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: memberData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!memberData) return;
-
       const { data, error } = await supabase
         .from("projects")
         .select(`
@@ -60,7 +54,7 @@ export function ProgressTracking() {
             due_date
           )
         `)
-        .eq("organization_id", memberData.organization_id)
+        .eq("organization_id", organization.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ArrowLeft, Target, Clock, AlertCircle, CheckCircle2, Circle, Filter, Search } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type TaskStatus = "todo" | "in_progress" | "review" | "done" | "overdue";
 type TaskPriority = "low" | "medium" | "high";
@@ -37,6 +38,7 @@ interface TaskStats {
 }
 
 export function TaskAssignment() {
+  const { organization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState<TaskStats>({
     total: 0,
@@ -52,8 +54,10 @@ export function TaskAssignment() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (organization) {
+      fetchTasks();
+    }
+  }, [organization]);
 
   // Calculate stats whenever tasks change
   useEffect(() => {
@@ -130,34 +134,9 @@ export function TaskAssignment() {
   };
 
   const fetchTasks = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        console.log("No user found");
-        setLoading(false);
-        return;
-      }
-
-      const { data: memberData, error: memberError } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (memberError) {
-        console.error("Error fetching organization:", memberError);
-        setLoading(false);
-        return;
-      }
-
-      if (!memberData) {
-        console.log("No organization found for user");
-        setTasks([]);
-        setLoading(false);
-        return;
-      }
-
       const { data: tasksData, error: tasksError } = await supabase
         .from("tasks")
         .select(`
@@ -170,7 +149,7 @@ export function TaskAssignment() {
           projects!inner(name, organization_id),
           assignee:users!assignee_id(full_name)
         `)
-        .eq("projects.organization_id", memberData.organization_id)
+        .eq("projects.organization_id", organization.id)
         .order("created_at", { ascending: false });
 
       if (tasksError) {

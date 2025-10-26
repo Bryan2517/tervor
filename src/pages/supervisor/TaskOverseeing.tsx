@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Eye, Clock, Target, CheckCircle2, AlertCircle } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type TaskStatus = "todo" | "in_progress" | "done";
 type TaskPriority = "low" | "medium" | "high";
@@ -29,28 +30,21 @@ interface Task {
 
 export default function SupervisorTaskOverseeing() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"all" | "todo" | "in_progress" | "done">("all");
 
   useEffect(() => {
-    fetchTasks();
-  }, []);
+    if (organization) {
+      fetchTasks();
+    }
+  }, [organization]);
 
   const fetchTasks = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgMember } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
-
-      if (!orgMember) return;
-
       const { data, error } = await supabase
         .from("tasks")
         .select(`
@@ -64,7 +58,7 @@ export default function SupervisorTaskOverseeing() {
           project:projects!inner(name, organization_id),
           assignee:users!tasks_assignee_id_fkey(full_name, email)
         `)
-        .eq("project.organization_id", orgMember.organization_id)
+        .eq("project.organization_id", organization.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock, Timer } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface TimeLog {
   id: string;
@@ -23,27 +24,20 @@ interface TimeLog {
 }
 
 export function TimeManagement() {
+  const { organization } = useOrganization();
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTimeLogs();
-  }, []);
+    if (organization) {
+      fetchTimeLogs();
+    }
+  }, [organization]);
 
   const fetchTimeLogs = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: memberData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!memberData) return;
-
       const { data, error } = await supabase
         .from("time_logs")
         .select(`
@@ -57,7 +51,7 @@ export function TimeManagement() {
             projects!inner(name, organization_id)
           )
         `)
-        .eq("tasks.projects.organization_id", memberData.organization_id)
+        .eq("tasks.projects.organization_id", organization.id)
         .order("timestamp", { ascending: false })
         .limit(50);
 

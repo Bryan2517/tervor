@@ -19,7 +19,9 @@ import {
   BarChart3,
   Gift,
   LogOut,
-  Wrench
+  Wrench,
+  UsersRound,
+  Clock
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -230,21 +232,39 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/owner/projects">
+                    <Link to="/owner/projects/new">
                       <Building2 className="w-6 h-6" />
-                      <span>Manage Projects</span>
+                      <span>Create Project</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/owner/team">
+                    <Link to="/owner/tasks/new">
+                      <Target className="w-6 h-6" />
+                      <span>Create Task</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/assignments/new">
                       <Users className="w-6 h-6" />
-                      <span>Team Management</span>
+                      <span>Create Assignment</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/owner/analytics">
                       <BarChart3 className="w-6 h-6" />
                       <span>Analytics</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/teams">
+                      <UsersRound className="w-6 h-6" />
+                      <span>Team Management</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/owner/time-logging">
+                      <Clock className="w-6 h-6" />
+                      <span>Time Logging</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
@@ -255,7 +275,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/owner/settings">
-                      <Settings className="w-4 h-4 mr-2" />
+                      <Settings className="w-6 h-6" />
                       <span>Settings</span>
                     </Link>
                   </Button>

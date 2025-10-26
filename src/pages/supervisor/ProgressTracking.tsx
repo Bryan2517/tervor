@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, TrendingUp, Target, CheckCircle2 } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface ProgressStats {
   totalTasks: number;
@@ -15,6 +16,7 @@ interface ProgressStats {
 
 export default function SupervisorProgressTracking() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [stats, setStats] = useState<ProgressStats>({
     totalTasks: 0,
     completedTasks: 0,
@@ -25,27 +27,19 @@ export default function SupervisorProgressTracking() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchProgressStats();
-  }, []);
+    if (organization) {
+      fetchProgressStats();
+    }
+  }, [organization]);
 
   const fetchProgressStats = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgMember } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
-
-      if (!orgMember) return;
-
       const { data, error } = await supabase
         .from("tasks")
         .select("status, project:projects!inner(organization_id)")
-        .eq("project.organization_id", orgMember.organization_id);
+        .eq("project.organization_id", organization.id);
 
       if (error) throw error;
 

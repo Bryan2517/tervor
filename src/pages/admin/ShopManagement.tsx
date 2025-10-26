@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Gift, Plus, Coins } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Reward {
   id: string;
@@ -21,9 +22,9 @@ interface Reward {
 }
 
 export function ShopManagement() {
+  const { organization } = useOrganization();
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [loading, setLoading] = useState(true);
-  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   
   const [newReward, setNewReward] = useState({
@@ -34,29 +35,19 @@ export function ShopManagement() {
   });
 
   useEffect(() => {
-    fetchRewards();
-  }, []);
+    if (organization) {
+      fetchRewards();
+    }
+  }, [organization]);
 
   const fetchRewards = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: memberData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!memberData) return;
-
-      setOrganizationId(memberData.organization_id);
-
       const { data, error } = await supabase
         .from("rewards")
         .select("*")
-        .eq("organization_id", memberData.organization_id)
+        .eq("organization_id", organization.id)
         .order("points_cost");
 
       if (error) throw error;
@@ -74,7 +65,16 @@ export function ShopManagement() {
   };
 
   const handleCreateReward = async () => {
-    if (!organizationId || !newReward.title || newReward.points_cost <= 0) {
+    if (!organization) {
+      toast({
+        title: "Error",
+        description: "No organization selected",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!newReward.title || newReward.points_cost <= 0) {
       toast({
         title: "Validation Error",
         description: "Please fill in all required fields",
@@ -85,7 +85,7 @@ export function ShopManagement() {
 
     try {
       const { error } = await supabase.from("rewards").insert({
-        organization_id: organizationId,
+        organization_id: organization.id,
         title: newReward.title,
         description: newReward.description || null,
         points_cost: newReward.points_cost,

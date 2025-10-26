@@ -31,10 +31,12 @@ import {
   Settings,
   User,
   Gift,
-  Wrench
+  Wrench,
+  FolderOpen
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
@@ -78,6 +80,7 @@ const priorityColors = {
 };
 
 export function EmployeeDashboard({ organization, onLogout, onClockOut }: EmployeeDashboardProps) {
+  const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [stats, setStats] = useState({
     ongoing: 0,
@@ -121,8 +124,10 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
 
   const fetchUserStats = async () => {
     try {
-      // This would typically fetch from your points_ledger and other tables
-      // For now, using mock data
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Calculate task statistics
       const ongoing = tasks.filter(t => t.status === "in_progress").length;
       const dueToday = tasks.filter(t => {
         if (!t.due_date) return false;
@@ -134,11 +139,25 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
         return new Date(t.due_date) < new Date() && t.status !== "done";
       }).length;
 
+      // Fetch actual points from points_ledger
+      const { data: pointsData, error: pointsError } = await supabase
+        .from("points_ledger")
+        .select("delta")
+        .eq("user_id", user.id);
+
+      if (pointsError) throw pointsError;
+
+      // Calculate total points (sum of all deltas - positive for earn, negative for spend)
+      const totalPoints = (pointsData || []).reduce((sum, transaction) => {
+        return sum + transaction.delta;
+      }, 0);
+
       setStats(prev => ({
         ...prev,
         ongoing,
         dueToday,
         overdue,
+        points: totalPoints,
       }));
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -149,6 +168,9 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
 
   const handleTaskAction = async (taskId: string, action: "start" | "pause" | "complete") => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       let newStatus: TaskStatus;
       switch (action) {
         case "start":
@@ -162,23 +184,73 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
           break;
       }
 
-      const { error } = await supabase
-        .from("tasks")
-        .update({ 
-          status: newStatus,
-          updated_at: new Date().toISOString()
-        })
-        .eq("id", taskId);
+      // If completing a task, award points
+      if (action === "complete") {
+        // Get the task details to check for completion points
+        const { data: taskData, error: taskError } = await supabase
+          .from("tasks")
+          .select("completion_points")
+          .eq("id", taskId)
+          .single();
 
-      if (error) throw error;
+        if (taskError) throw taskError;
 
-      // Also create time log entry
+        // Update task status
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+
+        // Award points if the task has completion points
+        if (taskData.completion_points && taskData.completion_points > 0) {
+          const { error: pointsError } = await supabase
+            .from("points_ledger")
+            .insert({
+              user_id: user.id,
+              delta: taskData.completion_points,
+              reason_code: "task_completion",
+              task_id: taskId,
+            });
+
+          if (pointsError) throw pointsError;
+
+          // Show success notification with points earned
+          toast({
+            title: "Task Completed! 🎉",
+            description: `You earned ${taskData.completion_points} points!`,
+          });
+        } else {
+          // Show completion message without points
+          toast({
+            title: "Task Completed!",
+            description: "Great job completing this task!",
+          });
+        }
+      } else {
+        // For start and pause, just update the status
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+      }
+
+      // Create time log entry
       if (action === "start" || action === "pause" || action === "complete") {
         await supabase
           .from("time_logs")
           .insert({
             task_id: taskId,
-            user_id: (await supabase.auth.getUser()).data.user?.id,
+            user_id: user.id,
             action: action === "complete" ? "complete" : action,
           });
       }
@@ -341,6 +413,41 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* My Tasks */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Employee Tools */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wrench className="w-5 h-5" />
+                  Quick Tools
+                </CardTitle>
+                <CardDescription>
+                  Fast and easy access to your work
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/projects">
+                      <FolderOpen className="w-6 h-6" />
+                      <span>Projects</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/shop">
+                      <Gift className="w-6 h-6" />
+                      <span>Rewards Shop</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/settings">
+                      <Settings className="w-6 h-6" />
+                      <span>Settings</span>
+                    </Link>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -424,35 +531,6 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                     </Card>
                   ))
                 )}
-              </CardContent>
-            </Card>
-
-             {/* Employee Tools */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5" />
-                  Quick Tools
-                </CardTitle>
-                <CardDescription>
-                  Fast and easy access to your work
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/employee/shop">
-                      <Gift className="w-6 h-6" />
-                      <span>Rewards Shop</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/employee/settings">
-                      <Settings className="w-6 h-6" />
-                      <span>Settings</span>
-                    </Link>
-                  </Button>
-                </div>
               </CardContent>
             </Card>
           </div>

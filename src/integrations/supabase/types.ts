@@ -668,6 +668,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          due_date: string | null
           id: string
           name: string
           organization_id: string
@@ -677,6 +678,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           name: string
           organization_id: string
@@ -686,6 +688,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          due_date?: string | null
           id?: string
           name?: string
           organization_id?: string
@@ -855,6 +858,7 @@ export type Database = {
       tasks: {
         Row: {
           assignee_id: string | null
+          completion_points: number | null
           created_at: string
           created_by: string | null
           description: string | null
@@ -864,11 +868,13 @@ export type Database = {
           priority: Database["public"]["Enums"]["task_priority"]
           project_id: string
           status: Database["public"]["Enums"]["task_status"]
+          task_type: string | null
           title: string
           updated_at: string
         }
         Insert: {
           assignee_id?: string | null
+          completion_points?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -878,11 +884,13 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id: string
           status?: Database["public"]["Enums"]["task_status"]
+          task_type?: string | null
           title: string
           updated_at?: string
         }
         Update: {
           assignee_id?: string | null
+          completion_points?: number | null
           created_at?: string
           created_by?: string | null
           description?: string | null
@@ -892,6 +900,7 @@ export type Database = {
           priority?: Database["public"]["Enums"]["task_priority"]
           project_id?: string
           status?: Database["public"]["Enums"]["task_status"]
+          task_type?: string | null
           title?: string
           updated_at?: string
         }
@@ -1122,10 +1131,7 @@ export type Database = {
         }
         Returns: undefined
       }
-      calculate_local_date: {
-        Args: { clock_in_time: string }
-        Returns: string
-      }
+      calculate_local_date: { Args: { clock_in_time: string }; Returns: string }
       can_manage_roles: {
         Args: {
           p_manager_role: Database["public"]["Enums"]["user_role"]
@@ -1158,15 +1164,18 @@ export type Database = {
           updated_at: string | null
           user_id: string
         }
+        SetofOptions: {
+          from: "*"
+          to: "attendance_checkins"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       create_org_with_owner: {
         Args: { p_description?: string; p_name: string }
         Returns: string
       }
-      ensure_user_profile: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      ensure_user_profile: { Args: never; Returns: undefined }
       get_leaderboard: {
         Args: { p_org: string; p_since?: string }
         Returns: {
@@ -1221,7 +1230,7 @@ export type Database = {
       redemption_status: "pending" | "confirmed" | "fulfilled" | "cancelled"
       request_status: "pending" | "approved" | "rejected"
       task_priority: "low" | "medium" | "high" | "urgent"
-      task_status: "todo" | "in_progress" | "done" | "overdue" | "review"
+      task_status: "todo" | "in_progress" | "overdue" | "done" | "submitted"
       timelog_action: "start" | "pause" | "resume" | "complete"
       user_role: "owner" | "admin" | "supervisor" | "employee"
     }
@@ -1367,7 +1376,7 @@ export const Constants = {
       redemption_status: ["pending", "confirmed", "fulfilled", "cancelled"],
       request_status: ["pending", "approved", "rejected"],
       task_priority: ["low", "medium", "high", "urgent"],
-      task_status: ["todo", "in_progress", "done", "overdue", "review"],
+      task_status: ["todo", "in_progress", "overdue", "done", "submitted"],
       timelog_action: ["start", "pause", "resume", "complete"],
       user_role: ["owner", "admin", "supervisor", "employee"],
     },

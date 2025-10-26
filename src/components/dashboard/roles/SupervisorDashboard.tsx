@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
-import { InvitationManager } from "../shared/InvitationManager";
 import { ClockOutButton } from "../shared/ClockOutButton";
 import { Link } from "react-router-dom";
 import { 
@@ -20,7 +19,8 @@ import {
   Gift,
   Coins,
   LogOut,
-  Settings
+  Settings,
+  FolderOpen
 } from "lucide-react";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
@@ -62,13 +62,44 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
 
   const fetchSupervisorStats = async () => {
     try {
+      // Get current user (supervisor)
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Find the team where this supervisor is the lead
+      // @ts-ignore - teams table will be available after migration
+      const { data: supervisorTeam } = await (supabase as any)
+        .from("teams")
+        .select("id")
+        .eq("organization_id", organization.id)
+        .eq("supervisor_id", user.id)
+        .maybeSingle();
+
+      let directReports = 0;
+      
+      if (supervisorTeam) {
+        // Get employees who are members of this supervisor's team
+        // @ts-ignore - team_members table will be available after migration
+        const { data: teamMembersData } = await (supabase as any)
+          .from("team_members")
+          .select("user_id")
+          .eq("team_id", supervisorTeam.id);
+
+        if (teamMembersData) {
+          // Filter to only count employees (not supervisors)
+          const { data: orgMembers } = await supabase
+            .from("organization_members")
+            .select("user_id")
+            .eq("organization_id", organization.id)
+            .eq("role", "employee")
+            .in("user_id", teamMembersData.map(m => m.user_id));
+
+          directReports = orgMembers?.length || 0;
+        }
+      }
+
       // Fetch supervisor-specific statistics
-      const [employeesData, tasksData, completedTasksData] = await Promise.all([
-        supabase
-          .from('organization_members')
-          .select('id')
-          .eq('organization_id', organization.id)
-          .eq('role', 'employee'),
+      const [tasksData, completedTasksData] = await Promise.all([
         supabase
           .from('tasks')
           .select('status, created_at, project:projects!inner(organization_id)')
@@ -80,7 +111,6 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           .eq('status', 'done')
       ]);
 
-      const directReports = employeesData.data?.length || 0;
       const tasksOverseeing = tasksData.data?.length || 0;
       
       // Calculate tasks completed today
@@ -255,6 +285,12 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
               <CardContent>
                 <div className="grid grid-cols-2 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/projects">
+                      <FolderOpen className="w-6 h-6" />
+                      <span>Projects</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/task-assignment">
                       <Target className="w-6 h-6" />
                       <span>Task Assignment</span>
@@ -363,7 +399,6 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           {/* Sidebar */}
           <div className="space-y-6">
             <OnlinePresence organizationId={organization.id} />
-            <InvitationManager organizationId={organization.id} userRole="supervisor" />
           </div>
         </div>
       </div>

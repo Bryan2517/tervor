@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle2, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "@/hooks/use-toast";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface Task {
   id: string;
@@ -21,27 +22,20 @@ interface Task {
 }
 
 export function QualityReview() {
+  const { organization } = useOrganization();
   const [reviewTasks, setReviewTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchReviewTasks();
-  }, []);
+    if (organization) {
+      fetchReviewTasks();
+    }
+  }, [organization]);
 
   const fetchReviewTasks = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: memberData } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "admin")
-        .single();
-
-      if (!memberData) return;
-
       const { data, error } = await supabase
         .from("tasks")
         .select(`
@@ -52,7 +46,7 @@ export function QualityReview() {
           projects!inner(name, organization_id),
           assignee:users!assignee_id(full_name)
         `)
-        .eq("projects.organization_id", memberData.organization_id)
+        .eq("projects.organization_id", organization.id)
         .eq("status", "in_progress")
         .order("created_at", { ascending: false });
 

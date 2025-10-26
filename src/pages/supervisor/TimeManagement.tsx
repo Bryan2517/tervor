@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Clock } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 interface TimeLog {
   id: string;
@@ -22,27 +23,20 @@ interface TimeLog {
 
 export default function SupervisorTimeManagement() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [timeLogs, setTimeLogs] = useState<TimeLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTimeLogs();
-  }, []);
+    if (organization) {
+      fetchTimeLogs();
+    }
+  }, [organization]);
 
   const fetchTimeLogs = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgMember } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
-
-      if (!orgMember) return;
-
       const { data, error } = await supabase
         .from("time_logs")
         .select(`
@@ -55,7 +49,7 @@ export default function SupervisorTimeManagement() {
           task:tasks!inner(title, project:projects!inner(organization_id)),
           user:users(full_name)
         `)
-        .eq("task.project.organization_id", orgMember.organization_id)
+        .eq("task.project.organization_id", organization.id)
         .order("timestamp", { ascending: false })
         .limit(50);
 

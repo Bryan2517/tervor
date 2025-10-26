@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle2, Calendar, TrendingUp } from "lucide-react";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 type TaskPriority = "low" | "medium" | "high";
 
@@ -24,28 +25,21 @@ interface CompletedTask {
 
 export default function SupervisorCompleteToday() {
   const navigate = useNavigate();
+  const { organization } = useOrganization();
   const [completedTasks, setCompletedTasks] = useState<CompletedTask[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalPoints, setTotalPoints] = useState(0);
 
   useEffect(() => {
-    fetchCompletedTasks();
-  }, []);
+    if (organization) {
+      fetchCompletedTasks();
+    }
+  }, [organization]);
 
   const fetchCompletedTasks = async () => {
+    if (!organization) return;
+    
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: orgMember } = await supabase
-        .from("organization_members")
-        .select("organization_id")
-        .eq("user_id", user.id)
-        .eq("role", "supervisor")
-        .single();
-
-      if (!orgMember) return;
-
       // Get today's date range
       const today = new Date();
       today.setHours(0, 0, 0, 0);
@@ -63,7 +57,7 @@ export default function SupervisorCompleteToday() {
           project:projects!inner(name, organization_id),
           assignee:users!tasks_assignee_id_fkey(full_name)
         `)
-        .eq("project.organization_id", orgMember.organization_id)
+        .eq("project.organization_id", organization.id)
         .eq("status", "done")
         .gte("updated_at", today.toISOString())
         .lt("updated_at", tomorrow.toISOString())
