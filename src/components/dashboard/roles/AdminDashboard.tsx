@@ -23,6 +23,7 @@ import {
   User,
   UsersRound
 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -40,7 +41,8 @@ interface AdminDashboardProps {
 }
 
 interface AdminStats {
-  teamMembers: number;
+  attendanceToday: number;
+  totalMembers: number;
   managedProjects: number;
   activeTasks: number;
   teamProductivity: number;
@@ -49,7 +51,8 @@ interface AdminStats {
 
 export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDashboardProps) {
   const [stats, setStats] = useState<AdminStats>({
-    teamMembers: 0,
+    attendanceToday: 0,
+    totalMembers: 0,
     managedProjects: 0,
     activeTasks: 0,
     teamProductivity: 0,
@@ -63,13 +66,20 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
 
   const fetchAdminStats = async () => {
     try {
+      // Get today's date
+      const today = new Date().toISOString().split('T')[0];
+      
       // Fetch admin-specific statistics
-      const [membersData, projectsData, tasksData, completedTasksData] = await Promise.all([
+      const [attendanceData, membersData, projectsData, tasksData, completedTasksData] = await Promise.all([
+        supabase
+          .from('attendance_checkins')
+          .select('user_id', { count: 'exact', head: false })
+          .eq('org_id', organization.id)
+          .eq('local_date', today),
         supabase
           .from('organization_members')
           .select('user_id')
           .eq('organization_id', organization.id),
-          // .neq('role', 'owner'),
         supabase
           .from('projects')
           .select('id')
@@ -86,7 +96,8 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
           .eq('status', 'done')
       ]);
 
-      const teamMembers = membersData.data?.length || 0;
+      const attendanceToday = attendanceData.data?.length || 0;
+      const totalMembers = membersData.data?.length || 0;
       const managedProjects = projectsData.data?.length || 0;
       const activeTasks = tasksData.data?.length || 0;
       
@@ -101,7 +112,8 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
       const teamProductivity = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
       setStats({
-        teamMembers,
+        attendanceToday,
+        totalMembers,
         managedProjects,
         activeTasks,
         teamProductivity,
@@ -168,16 +180,35 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
       <div className="container mx-auto px-4 py-6">
         {/* Admin Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Link to="/admin/manage-team">
+          <Link to="/admin/time-logging">
             <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Team Members</p>
-                    <p className="text-2xl font-bold">{stats.teamMembers}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Attendance Today</p>
+                    <p className="text-2xl font-bold">{stats.attendanceToday}</p>
                   </div>
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-primary" />
+                  <div className="w-12 h-12 relative">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Present", value: stats.attendanceToday },
+                            { name: "Absent", value: Math.max(0, stats.totalMembers - stats.attendanceToday) },
+                          ]}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={14}
+                          outerRadius={24}
+                          dataKey="value"
+                          startAngle={90}
+                          endAngle={-270}
+                        >
+                          <Cell fill="hsl(142, 76%, 36%)" />
+                          <Cell fill="hsl(0, 84%, 60%)" />
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
                   </div>
                 </div>
               </CardContent>

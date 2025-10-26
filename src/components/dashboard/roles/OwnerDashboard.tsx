@@ -23,6 +23,7 @@ import {
   UsersRound,
   Clock
 } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
 
@@ -40,6 +41,7 @@ interface OwnerDashboardProps {
 }
 
 interface OrgStats {
+  attendanceToday: number;
   totalMembers: number;
   activeProjects: number;
   totalTasks: number;
@@ -48,6 +50,7 @@ interface OrgStats {
 
 export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDashboardProps) {
   const [stats, setStats] = useState<OrgStats>({
+    attendanceToday: 0,
     totalMembers: 0,
     activeProjects: 0,
     totalTasks: 0,
@@ -61,8 +64,16 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
 
   const fetchOrgStats = async () => {
     try {
+      // Get today's date
+      const today = new Date().toISOString().split('T')[0];
+      
       // Fetch organization statistics
-      const [membersData, projectsData, tasksData] = await Promise.all([
+      const [attendanceData, membersData, projectsData, tasksData] = await Promise.all([
+        supabase
+          .from('attendance_checkins')
+          .select('user_id', { count: 'exact', head: false })
+          .eq('org_id', organization.id)
+          .eq('local_date', today),
         supabase
           .from('organization_members')
           .select('user_id')
@@ -77,6 +88,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
           .eq('project.organization_id', organization.id)
       ]);
 
+      const attendanceToday = attendanceData.data?.length || 0;
       const totalMembers = membersData.data?.length || 0;
       const activeProjects = projectsData.data?.length || 0;
       const totalTasks = tasksData.data?.length || 0;
@@ -84,6 +96,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
       const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
       setStats({
+        attendanceToday,
         totalMembers,
         activeProjects,
         totalTasks,
@@ -150,16 +163,35 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
       <div className="container mx-auto px-4 py-6">
         {/* Organization Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-        <Link to="/owner/team">
+        <Link to="/owner/time-logging">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Members</p>
-                  <p className="text-2xl font-bold">{stats.totalMembers}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Attendance Today</p>
+                  <p className="text-2xl font-bold">{stats.attendanceToday}</p>
                 </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
+                <div className="w-12 h-12 relative">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: "Present", value: stats.attendanceToday },
+                          { name: "Absent", value: Math.max(0, stats.totalMembers - stats.attendanceToday) },
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={14}
+                        outerRadius={24}
+                        dataKey="value"
+                        startAngle={90}
+                        endAngle={-270}
+                      >
+                        <Cell fill="hsl(142, 76%, 36%)" />
+                        <Cell fill="hsl(0, 84%, 60%)" />
+                      </Pie>
+                    </PieChart>
+                  </ResponsiveContainer>
                 </div>
               </div>
             </CardContent>

@@ -594,7 +594,7 @@ export function TimeLoggingReport() {
                           outerRadius={90}
                           dataKey="value"
                           startAngle={90}
-                          endAngle={450}
+                          endAngle={-270}
                         >
                           <Cell fill="hsl(142, 76%, 36%)" />
                           <Cell fill="hsl(0, 84%, 60%)" />
@@ -788,14 +788,14 @@ export function TimeLoggingReport() {
                       </div>
 
                       <div className="flex items-center gap-6">
-                        <div className="text-center">
+                        <div className="text-center w-20">
                           <p className="text-xs text-muted-foreground mb-1">Clock In</p>
                           <p className="text-sm font-mono font-semibold">
                             {format(new Date(record.clock_in_at), "HH:mm:ss")}
                           </p>
                         </div>
 
-                        <div className="text-center">
+                        <div className="text-center w-20">
                           <p className="text-xs text-muted-foreground mb-1">Clock Out</p>
                           <p className="text-sm font-mono font-semibold">
                             {record.clock_out_at 
@@ -804,14 +804,14 @@ export function TimeLoggingReport() {
                           </p>
                         </div>
 
-                        <div className="text-center min-w-[80px]">
+                        <div className="text-center w-20">
                           <p className="text-xs text-muted-foreground mb-1">Hours</p>
                           <p className="text-sm font-semibold">
                             {hoursWorked}
                           </p>
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-[120px]">
                           {getStatusBadge(status)}
                           {hasOT && (
                             <Badge variant="outline" className="bg-warning/10 text-warning border-warning">
