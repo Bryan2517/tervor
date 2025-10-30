@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { OnlinePresence } from "./shared/OnlinePresence";
 import { InvitationManager } from "./shared/InvitationManager";
 import { ClockOutButton } from "./shared/ClockOutButton";
+import { NotificationBell } from "./shared/NotificationBell";
 import { cn } from "@/lib/utils";
 import { 
   Calendar, 
@@ -82,6 +83,7 @@ const priorityColors = {
 export function EmployeeDashboard({ organization, onLogout, onClockOut }: EmployeeDashboardProps) {
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [userId, setUserId] = useState<string>("");
   const [stats, setStats] = useState({
     ongoing: 0,
     dueToday: 0,
@@ -94,6 +96,11 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUserId();
     fetchUserTasks();
     fetchUserStats();
   }, [organization.id]);
@@ -333,6 +340,10 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                 <Coins className="w-5 h-5" />
                 <span className="font-semibold">{stats.points}</span>
               </Card>
+              {userId && <NotificationBell userId={userId} />}
+              <Button variant="ghost" size="icon" asChild aria-label="Shop">
+                <Link to="/employee/shop"><Gift className="w-5 h-5" /></Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link to="/employee/settings"><Settings/>Settings</Link>
               </Button>
@@ -341,10 +352,6 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                 organizationName={organization.name}
                 onClockOut={onClockOut}
               />
-              <Button variant="ghost" onClick={onLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
             </div>
           </div>
         </div>

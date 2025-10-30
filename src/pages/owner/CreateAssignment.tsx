@@ -156,8 +156,13 @@ export default function CreateAssignment() {
         description: "Assignment created successfully",
       });
 
-      // Navigate back to projects or tasks overview
-      navigate("/owner/tasks");
+      // Navigate back to the specific project detail page
+      const project = projects.find((p) => p.id === formData.project_id);
+      if (project?.name) {
+        navigate(`/owner/projects/${project.name}`);
+      } else {
+        navigate(`/owner/projects`);
+      }
     } catch (error: any) {
       console.error("Error creating assignment:", error);
       toast({
@@ -183,7 +188,7 @@ export default function CreateAssignment() {
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/owner/tasks")}>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div>
@@ -363,7 +368,7 @@ export default function CreateAssignment() {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate("/owner/tasks")}
+                  onClick={() => navigate("/")}
                   disabled={loading}
                 >
                   Cancel

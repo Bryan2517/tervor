@@ -26,7 +26,8 @@ import {
   Users,
   BarChart3,
   Trash2,
-  Pencil
+  Pencil,
+  CalendarClock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -675,6 +676,14 @@ export function ProjectDetail() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate("/owner/extension-requests")}
+              >
+                <CalendarClock className="w-4 h-4 mr-2" />
+                Extension Requests
+              </Button>
               <Dialog open={editProjectDialogOpen} onOpenChange={setEditProjectDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm" onClick={handleOpenEditDialog}>

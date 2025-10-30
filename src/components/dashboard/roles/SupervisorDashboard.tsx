@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { ClockOutButton } from "../shared/ClockOutButton";
+import { NotificationBell } from "../shared/NotificationBell";
 import { Link } from "react-router-dom";
 import { 
   Eye, 
@@ -47,6 +48,7 @@ interface SupervisorStats {
 }
 
 export function SupervisorDashboard({ organization, onLogout, onClockOut }: SupervisorDashboardProps) {
+  const [userId, setUserId] = useState<string>("");
   const [stats, setStats] = useState<SupervisorStats>({
     directReports: 0,
     tasksOverseeing: 0,
@@ -57,6 +59,11 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUserId();
     fetchSupervisorStats();
   }, [organization.id]);
 
@@ -176,6 +183,12 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
             </div>
             
             <div className="flex items-center gap-4">
+              {userId && <NotificationBell userId={userId} />}
+              <Link to="/supervisor/shop">
+                <Button variant="ghost" size="icon" aria-label="Shop">
+                  <Gift className="w-5 h-5" />
+                </Button>
+              </Link>
               <Link to="/supervisor/manage-team">
                 <Button variant="outline">
                   <UserPlus className="w-4 h-4 mr-2" />
@@ -187,10 +200,6 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
                 organizationName={organization.name}
                 onClockOut={onClockOut}
               />
-              <Button variant="ghost" onClick={onLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
             </div>
           </div>
         </div>

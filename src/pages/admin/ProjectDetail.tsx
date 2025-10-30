@@ -28,7 +28,8 @@ import {
   Coins,
   Users,
   BarChart3,
-  Trash2
+  Trash2,
+  CalendarClock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -544,6 +545,16 @@ export function ProjectDetail() {
                 </h1>
                 <p className="text-sm text-muted-foreground">Project Details</p>
               </div>
+            </div>
+            <div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate("/admin/extension-requests")}
+              >
+                <CalendarClock className="w-4 h-4 mr-2" />
+                Extension Requests
+              </Button>
             </div>
           </div>
         </div>

@@ -126,6 +126,9 @@ const Index = () => {
   };
 
   const handleLogout = async () => {
+    const confirmed = window.confirm("Are you sure you want to log out?");
+    if (!confirmed) return;
+
     await supabase.auth.signOut();
     setSession(null);
     setUser(null);

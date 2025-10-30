@@ -41,6 +41,7 @@ export function OrganizationSettings() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -133,6 +134,10 @@ export function OrganizationSettings() {
 
   const handleSave = async () => {
     if (!organization) return;
+    if (!formData.name.trim()) {
+      toast({ title: "Name required", description: "Please enter an organization name.", variant: "destructive" });
+      return;
+    }
     
     setSaving(true);
     try {
@@ -189,6 +194,14 @@ export function OrganizationSettings() {
 
   const handleDeleteOrganization = async () => {
     if (!organization) return;
+    if (confirmName.trim() !== (organization?.name || "").trim()) {
+      toast({
+        title: "Confirmation required",
+        description: `Please type "${organization?.name}" to confirm deletion`,
+        variant: "destructive",
+      });
+      return;
+    }
     
     setDeleting(true);
     try {
@@ -274,6 +287,7 @@ export function OrganizationSettings() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Enter organization name"
               />
+              <p className="text-xs text-muted-foreground">This name will be shown across your workspace.</p>
             </div>
 
             <div className="space-y-2">
@@ -282,22 +296,23 @@ export function OrganizationSettings() {
                 id="description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter organization description"
-                rows={4}
+                placeholder="Briefly describe your organization (optional)"
+                rows={3}
               />
+              <p className="text-xs text-muted-foreground">Optional. Helps team members understand your workspace.</p>
             </div>
 
             <div className="space-y-2">
               <Label>Organization Logo</Label>
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 bg-muted rounded-lg flex items-center justify-center">
+                <div className="w-20 h-20 rounded-lg flex items-center justify-center border border-dashed">
                   {organization?.logo_url ? (
                     <img src={organization.logo_url} alt="Logo" className="w-full h-full object-cover rounded-lg" />
                   ) : (
                     <Building2 className="w-8 h-8 text-muted-foreground" />
                   )}
                 </div>
-                <Button variant="outline" asChild disabled={uploading}>
+                <Button variant="secondary" asChild disabled={uploading}>
                   <label className="cursor-pointer">
                     <Upload className="w-4 h-4 mr-2" />
                     {uploading ? "Uploading..." : "Upload Logo"}
@@ -310,6 +325,7 @@ export function OrganizationSettings() {
                   </label>
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">PNG or JPG, square images recommended.</p>
             </div>
           </CardContent>
         </Card>
@@ -444,11 +460,20 @@ export function OrganizationSettings() {
                       and remove all associated data including projects, tasks, and team members.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
+                  <div className="mt-4 space-y-2">
+                    <Label htmlFor="confirm-org-name">Type the organization name to confirm</Label>
+                    <Input
+                      id="confirm-org-name"
+                      placeholder={organization?.name}
+                      value={confirmName}
+                      onChange={(e) => setConfirmName(e.target.value)}
+                    />
+                  </div>
                   <AlertDialogFooter>
                     <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={handleDeleteOrganization}
-                      disabled={deleting}
+                      disabled={deleting || confirmName.trim() !== (organization?.name || "").trim()}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
                       {deleting ? "Deleting..." : "Yes, delete organization"}

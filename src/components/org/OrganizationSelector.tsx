@@ -53,6 +53,8 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
   const [inviteCode, setInviteCode] = useState("");
   const [creating, setCreating] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
   const [clockingIn, setClockingIn] = useState(false);
   const { toast } = useToast();
   
@@ -280,19 +282,27 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
     }
   };
 
+  const handleLogoutClick = () => {
+    setLogoutDialogOpen(true);
+  };
+
   const handleLogout = async () => {
+    setLoggingOut(true);
     try {
       await supabase.auth.signOut();
       toast({
         title: "Logged out",
         description: "You have been successfully logged out.",
       });
+      setLogoutDialogOpen(false);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to logout",
         variant: "destructive",
       });
+    } finally {
+      setLoggingOut(false);
     }
   };
 
@@ -401,7 +411,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
             <Button 
               variant="ghost" 
               className="w-full text-muted-foreground hover:text-destructive"
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
             >
               <LogOut className="w-4 h-4 mr-2" />
               Logout
@@ -546,7 +556,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
           <Button 
             variant="ghost" 
             className="text-muted-foreground hover:text-destructive"
-            onClick={handleLogout}
+            onClick={handleLogoutClick}
           >
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -578,6 +588,23 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
               </AlertDialogCancel>
               <AlertDialogAction onClick={handleConfirmClockIn} disabled={clockingIn}>
                 {clockingIn ? "Clocking In..." : "Clock In"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Log Out</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to log out?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={loggingOut}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? "Logging out..." : "Log Out"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -44,12 +44,21 @@ export function TeamManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterRole, setFilterRole] = useState<string>("all");
   const [removingUserId, setRemovingUserId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     if (organization) {
       fetchTeamMembers();
     }
   }, [organization]);
+
+  useEffect(() => {
+    const loadUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setCurrentUserId(user?.id || null);
+    };
+    loadUser();
+  }, []);
 
   const fetchTeamMembers = async () => {
     if (!organization) return;
@@ -75,8 +84,16 @@ export function TeamManagement() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+  const handleRoleChange = async (userId: string, newRole: UserRole, currentRole: UserRole) => {
     if (!organization) return;
+    if (userId === currentUserId) {
+      toast({ title: "Not allowed", description: "You can't change your own role.", variant: "destructive" });
+      return;
+    }
+    if (currentRole === "owner") {
+      toast({ title: "Not allowed", description: "Owner roles cannot be changed.", variant: "destructive" });
+      return;
+    }
     
     try {
       const { error } = await supabase
@@ -267,58 +284,58 @@ export function TeamManagement() {
                       {getRoleIcon(member.role)}
                       {member.role}
                     </Badge>
-                    {member.role !== "owner" && (
-                      <>
-                        <Select
-                          value={member.role}
-                          onValueChange={(value) => handleRoleChange(member.user_id, value as UserRole)}
-                        >
-                          <SelectTrigger className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="admin">Admin</SelectItem>
-                            <SelectItem value="supervisor">Supervisor</SelectItem>
-                            <SelectItem value="employee">Employee</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                    <>
+                      <Select
+                        value={member.role}
+                        onValueChange={(value) => handleRoleChange(member.user_id, value as UserRole, member.role)}
+                        disabled={member.user_id === currentUserId || member.role === "owner"}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="owner">Owner</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                          <SelectItem value="supervisor">Supervisor</SelectItem>
+                          <SelectItem value="employee">Employee</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={removingUserId === member.user_id}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
+                              <br /><br />
+                              This action cannot be undone. They will lose access to all projects and data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={removingUserId === member.user_id}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleRemoveMember(member.user_id)}
                               disabled={removingUserId === member.user_id}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              <UserMinus className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
-                                <br /><br />
-                                This action cannot be undone. They will lose access to all projects and data.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel disabled={removingUserId === member.user_id}>
-                                Cancel
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleRemoveMember(member.user_id)}
-                                disabled={removingUserId === member.user_id}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </>
-                    )}
+                              {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </>
                   </div>
                 </div>
               ))}

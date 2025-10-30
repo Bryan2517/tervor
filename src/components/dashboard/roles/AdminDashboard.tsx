@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
 import { ClockOutButton } from "../shared/ClockOutButton";
+import { NotificationBell } from "../shared/NotificationBell";
 import { Link } from "react-router-dom";
 import { 
   Shield, 
@@ -50,6 +51,7 @@ interface AdminStats {
 }
 
 export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDashboardProps) {
+  const [userId, setUserId] = useState<string>("");
   const [stats, setStats] = useState<AdminStats>({
     attendanceToday: 0,
     totalMembers: 0,
@@ -61,6 +63,11 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUserId();
     fetchAdminStats();
   }, [organization.id]);
 
@@ -157,6 +164,12 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
             </div>
             
             <div className="flex items-center gap-4">
+              {userId && <NotificationBell userId={userId} />}
+              <Link to="/admin/shop">
+                <Button variant="ghost" size="icon" aria-label="Shop">
+                  <Gift className="w-5 h-5" />
+                </Button>
+              </Link>
               <Link to="/admin/manage-team">
                 <Button variant="outline">
                   <Users className="w-4 h-4 mr-2" />
@@ -168,10 +181,6 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
                 organizationName={organization.name}
                 onClockOut={onClockOut}
               />
-              <Button variant="ghost" onClick={onLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
             </div>
           </div>
         </div>

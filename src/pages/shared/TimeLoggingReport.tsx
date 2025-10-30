@@ -259,7 +259,7 @@ export function TimeLoggingReport() {
 
     const totalPresent = records.length;
     const absent = totalMembers - totalPresent;
-    const attended = earlyArrivals + onTime; // Those who came on time or early
+    const attended = earlyArrivals + onTime + late; // All who attended (early, on-time, and late)
 
     setStatsFn({
       totalPresent,
@@ -450,107 +450,149 @@ export function TimeLoggingReport() {
       </header>
 
       <div className="container mx-auto px-4 py-8 space-y-6">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Members</p>
-                  <p className="text-2xl font-bold">{filteredStats.totalMembers}</p>
+        {/* Attendance Overview Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Attendance Overview
+            </CardTitle>
+            <CardDescription>
+              Click on any statistic to view detailed history for {format(new Date(selectedDate), "MMMM d, yyyy")}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+              {/* Total Members */}
+              <Link 
+                to={organization?.role === "owner" ? "/owner/team" : organization?.role === "admin" ? "/admin/manage-team" : "#"}
+                className="group"
+              >
+                <div className="p-4 rounded-lg border border-border hover:border-primary/50 hover:bg-primary/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CheckCircle2 className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold leading-none mb-1">{filteredStats.totalMembers}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Total Members</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Link>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Attended</p>
-                  <p className="text-2xl font-bold text-green-500">{filteredStats.attended}</p>
-                  {filteredStats.totalPresent !== stats.totalPresent && (
-                    <p className="text-xs text-muted-foreground">of {stats.attended} total</p>
-                  )}
+              {/* Attended */}
+              <Link to={`/${organization?.role}/attendance-history?filter=attended`} className="group">
+                <div className="p-4 rounded-lg border border-border hover:border-green-500/50 hover:bg-green-500/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CheckCircle2 className="w-6 h-6 text-green-500" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-green-500 leading-none mb-1">{filteredStats.attended}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Attended</p>
+                      {filteredStats.totalPresent !== stats.totalPresent && (
+                        <p className="text-[10px] text-muted-foreground/70">of {stats.attended}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-green-500/10 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-green-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Link>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Late</p>
-                  <p className="text-2xl font-bold text-warning">{filteredStats.late}</p>
-                  {filteredStats.totalPresent !== stats.totalPresent && (
-                    <p className="text-xs text-muted-foreground">of {stats.late} total</p>
-                  )}
+              {/* Early */}
+              <Link to={`/${organization?.role}/attendance-history?filter=early`} className="group">
+                <div className="p-4 rounded-lg border border-border hover:border-blue-500/50 hover:bg-blue-500/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <TrendingUp className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-blue-500 leading-none mb-1">{filteredStats.earlyArrivals}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Early</p>
+                      {filteredStats.totalPresent !== stats.totalPresent && (
+                        <p className="text-[10px] text-muted-foreground/70">of {stats.earlyArrivals}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <AlertCircle className="w-6 h-6 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Link>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Absent</p>
-                  <p className="text-2xl font-bold text-destructive">{filteredStats.absent}</p>
-                  {filteredStats.totalPresent !== stats.totalPresent && (
-                    <p className="text-xs text-muted-foreground">of {stats.absent} total</p>
-                  )}
+              {/* On Time */}
+              <Link to={`/${organization?.role}/attendance-history?filter=on-time`} className="group">
+                <div className="p-4 rounded-lg border border-border hover:border-emerald-600/50 hover:bg-emerald-600/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-emerald-600/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-emerald-600 leading-none mb-1">{filteredStats.onTime}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">On Time</p>
+                      {filteredStats.totalPresent !== stats.totalPresent && (
+                        <p className="text-[10px] text-muted-foreground/70">of {stats.onTime}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center">
-                  <XCircle className="w-6 h-6 text-destructive" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Link>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Early</p>
-                  <p className="text-2xl font-bold text-blue-500">{filteredStats.earlyArrivals}</p>
-                  {filteredStats.totalPresent !== stats.totalPresent && (
-                    <p className="text-xs text-muted-foreground">of {stats.earlyArrivals} total</p>
-                  )}
+              {/* Late */}
+              <Link to={`/${organization?.role}/attendance-history?filter=late`} className="group">
+                <div className="p-4 rounded-lg border border-border hover:border-warning/50 hover:bg-warning/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <AlertCircle className="w-6 h-6 text-warning" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-warning leading-none mb-1">{filteredStats.late}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Late</p>
+                      {filteredStats.totalPresent !== stats.totalPresent && (
+                        <p className="text-[10px] text-muted-foreground/70">of {stats.late}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-blue-500" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </Link>
 
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Overtime</p>
-                  <p className="text-2xl font-bold text-purple-500">{filteredStats.overtime}</p>
-                  {filteredStats.totalPresent !== stats.totalPresent && (
-                    <p className="text-xs text-muted-foreground">of {stats.overtime} total</p>
-                  )}
+              {/* Absent */}
+              <Link to={`/${organization?.role}/attendance-history?filter=absent`} className="group">
+                <div className="p-4 rounded-lg border border-border hover:border-destructive/50 hover:bg-destructive/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-destructive/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <XCircle className="w-6 h-6 text-destructive" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-destructive leading-none mb-1">{filteredStats.absent}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Absent</p>
+                      {filteredStats.totalPresent !== stats.totalPresent && (
+                        <p className="text-[10px] text-muted-foreground/70">of {stats.absent}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-purple-500" />
+              </Link>
+
+              
+
+              {/* Overtime */}
+              <Link to={`/${organization?.role}/attendance-history?filter=overtime`} className="group">
+                <div className="p-4 rounded-lg border border-border hover:border-purple-500/50 hover:bg-purple-500/5 transition-all cursor-pointer">
+                  <div className="flex flex-col items-center text-center space-y-2">
+                    <div className="w-12 h-12 bg-purple-500/10 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Clock className="w-6 h-6 text-purple-500" />
+                    </div>
+                    <div>
+                      <p className="text-3xl font-bold text-purple-500 leading-none mb-1">{filteredStats.overtime}</p>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Overtime</p>
+                      {filteredStats.totalPresent !== stats.totalPresent && (
+                        <p className="text-[10px] text-muted-foreground/70">of {stats.overtime}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Visual Analytics */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -605,7 +647,11 @@ export function TimeLoggingReport() {
                   </ChartContainer>
                 </div>
                 <div className="relative z-10 text-center pointer-events-none">
-                  <p className="text-4xl font-bold text-green-500">
+                  <p className={`text-4xl font-bold ${
+                    stats.totalMembers > 0 && (stats.totalPresent / stats.totalMembers) * 100 > 50
+                      ? "text-green-500"
+                      : "text-red-500"
+                  }`}>
                     {stats.totalMembers > 0 
                       ? Math.round((stats.totalPresent / stats.totalMembers) * 100)
                       : 0}%

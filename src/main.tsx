@@ -18,8 +18,10 @@ import { Teams } from "./pages/owner/Teams";
 import { Settings } from "./pages/owner/Settings";
 import { ShopManagement } from "./pages/owner/ShopManagement";
 import { TasksOverview } from "./pages/owner/TasksOverview";
+import ExtensionRequests from "./pages/owner/ExtensionRequests";
 import { ManageTeam } from "./pages/admin/ManageTeam";
 import { Analytics as AdminAnalytics } from "./pages/admin/Analytics";
+import AdminExtensionRequests from "./pages/admin/ExtensionRequests";
 import { TaskAssignment } from "./pages/admin/TaskAssignment";
 import { ProgressTracking } from "./pages/admin/ProgressTracking";
 import { TimeManagement } from "./pages/admin/TimeManagement";
@@ -29,6 +31,7 @@ import { Settings as AdminSettings } from "./pages/admin/Settings";
 import { TeamManagement as AdminTeamManagement } from "./pages/admin/TeamManagement";
 import { Shop } from "./pages/shared/Shop";
 import { TimeLoggingReport } from "./pages/shared/TimeLoggingReport";
+import { AttendanceHistory } from "./pages/shared/AttendanceHistory";
 import SupervisorManageTeam from "./pages/supervisor/ManageTeam";
 import SupervisorProjects from "./pages/supervisor/Projects";
 import { ProjectDetail as SupervisorProjectDetail } from "./pages/supervisor/ProjectDetail";
@@ -104,6 +107,10 @@ const router = createBrowserRouter([
         element: <TimeLoggingReport />,
       },
       {
+        path: "owner/attendance-history",
+        element: <AttendanceHistory />,
+      },
+      {
         path: "owner/shop",
         element: <Shop />,
       },
@@ -114,6 +121,10 @@ const router = createBrowserRouter([
       {
         path: "owner/tasks",
         element: <TasksOverview />,
+      },
+      {
+        path: "owner/extension-requests",
+        element: <ExtensionRequests />,
       },
       {
         path: "admin/analytics",
@@ -162,6 +173,14 @@ const router = createBrowserRouter([
       {
         path: "admin/time-logging",
         element: <TimeLoggingReport />,
+      },
+      {
+        path: "admin/attendance-history",
+        element: <AttendanceHistory />,
+      },
+      {
+        path: "admin/extension-requests",
+        element: <AdminExtensionRequests />,
       },
       {
         path: "supervisor/shop",
@@ -224,8 +243,16 @@ const router = createBrowserRouter([
         element: <SupervisorSettings />,
       },
       {
+        path: "supervisor/attendance-history",
+        element: <AttendanceHistory />,
+      },
+      {
         path: "employee/settings",
         element: <EmployeeSettings />,
+      },
+      {
+        path: "employee/attendance-history",
+        element: <AttendanceHistory />,
       },
     ],
   },

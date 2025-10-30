@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
 import { ClockOutButton } from "../shared/ClockOutButton";
+import { NotificationBell } from "../shared/NotificationBell";
 import { 
   Crown, 
   Building2, 
@@ -49,6 +50,7 @@ interface OrgStats {
 }
 
 export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDashboardProps) {
+  const [userId, setUserId] = useState<string>("");
   const [stats, setStats] = useState<OrgStats>({
     attendanceToday: 0,
     totalMembers: 0,
@@ -59,6 +61,11 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const getUserId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setUserId(user.id);
+    };
+    getUserId();
     fetchOrgStats();
   }, [organization.id]);
 
@@ -140,21 +147,17 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
             </div>
             
             <div className="flex items-center gap-4">
-              <Button variant="outline" asChild>
-                <Link to="/owner/organization-settings">
-                  <Settings className="w-4 h-4 mr-2" />
-                  Organization Settings
-                </Link>
-              </Button>
+              {userId && <NotificationBell userId={userId} />}
+              <Link to="/owner/shop/manage">
+                <Button variant="ghost" size="icon" aria-label="Shop">
+                  <Gift className="w-5 h-5" />
+                </Button>
+              </Link>
               <ClockOutButton 
                 organizationId={organization.id}
                 organizationName={organization.name}
                 onClockOut={onClockOut}
               />
-              <Button variant="ghost" onClick={onLogout}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </Button>
             </div>
           </div>
         </div>
@@ -206,40 +209,40 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
                   <p className="text-sm font-medium text-muted-foreground">Active Projects</p>
                   <p className="text-2xl font-bold">{stats.activeProjects}</p>
                 </div>
-                <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-                  <Building2 className="w-6 h-6 text-accent" />
+                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                  <Building2 className="w-6 h-6 text-blue-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
-        <Link to="/owner/tasks">
+        <Link to="/owner/teams">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Tasks</p>
-                  <p className="text-2xl font-bold">{stats.totalTasks}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Team Management</p>
+                  <p className="text-2xl font-bold">{stats.totalMembers}</p>
                 </div>
-                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <Target className="w-6 h-6 text-warning" />
+                <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                  <UsersRound className="w-6 h-6 text-blue-500" />
                 </div>
               </div>
             </CardContent>
           </Card>
         </Link>
 
-        <Link to="/owner/analytics">
+        <Link to="/owner/organization-settings">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Completion Rate</p>
-                  <p className="text-2xl font-bold">{stats.completionRate}%</p>
+                  <p className="text-sm font-medium text-muted-foreground">Organization Settings</p>
+                  <p className="text-2xl font-bold">Manage</p>
                 </div>
-                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-success" />
+                <div className="w-12 h-12 bg-muted/50 rounded-lg flex items-center justify-center">
+                  <Settings className="w-6 h-6" />
                 </div>
               </div>
             </CardContent>
@@ -282,9 +285,9 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/owner/analytics">
-                      <BarChart3 className="w-6 h-6" />
-                      <span>Analytics</span>
+                    <Link to="/owner/team">
+                      <UsersRound className="w-6 h-6" />
+                      <span>Total Members</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>

@@ -6,6 +6,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   ArrowLeft, 
   FolderOpen, 
@@ -19,7 +23,8 @@ import {
   Coins,
   BarChart3,
   Play,
-  Pause
+  Pause,
+  CalendarClock
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -73,6 +78,12 @@ export function ProjectDetail() {
     overdueTasks: 0,
     totalPoints: 0,
     earnedPoints: 0,
+  });
+  const [extensionDialogOpen, setExtensionDialogOpen] = useState(false);
+  const [selectedTaskForExtension, setSelectedTaskForExtension] = useState<Task | null>(null);
+  const [extensionRequest, setExtensionRequest] = useState({
+    requested_due_at: "",
+    reason: "",
   });
 
   useEffect(() => {
@@ -286,6 +297,129 @@ export function ProjectDetail() {
     }
   };
 
+  const handleMarkAsDone = async (taskId: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Get the task details to check for completion points
+      const { data: taskData, error: taskError } = await supabase
+        .from("tasks")
+        .select("completion_points")
+        .eq("id", taskId)
+        .single();
+
+      if (taskError) throw taskError;
+
+      // Update task status to done
+      const { error: updateError } = await supabase
+        .from("tasks")
+        .update({ 
+          status: "done",
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", taskId);
+
+      if (updateError) throw updateError;
+
+      // Award points if the task has completion points
+      if (taskData.completion_points && taskData.completion_points > 0) {
+        const { error: pointsError } = await supabase
+          .from("points_ledger")
+          .insert({
+            user_id: user.id,
+            delta: taskData.completion_points,
+            reason_code: "task_completion",
+            task_id: taskId,
+          });
+
+        if (pointsError) throw pointsError;
+
+        toast({
+          title: "Task Completed! 🎉",
+          description: `You earned ${taskData.completion_points} points!`,
+        });
+      } else {
+        toast({
+          title: "Task Completed!",
+          description: "Great job completing this task!",
+        });
+      }
+
+      // Refresh project details
+      await fetchProjectDetails();
+    } catch (error) {
+      console.error("Error marking task as done:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mark task as done",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleRequestExtension = async () => {
+    if (!selectedTaskForExtension || !extensionRequest.requested_due_at) {
+      toast({
+        title: "Error",
+        description: "Please select a new due date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!extensionRequest.reason || extensionRequest.reason.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for the extension request",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from("extension_requests")
+        .insert({
+          task_id: selectedTaskForExtension.id,
+          requester_id: user.id,
+          requested_due_at: extensionRequest.requested_due_at,
+          reason: extensionRequest.reason,
+          status: "pending",
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Extension Request Sent",
+        description: "Your extension request has been sent to admins and owners for approval",
+      });
+
+      setExtensionDialogOpen(false);
+      setSelectedTaskForExtension(null);
+      setExtensionRequest({ requested_due_at: "", reason: "" });
+    } catch (error) {
+      console.error("Error requesting extension:", error);
+      toast({
+        title: "Error",
+        description: "Failed to request extension",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openExtensionDialog = (task: Task) => {
+    setSelectedTaskForExtension(task);
+    setExtensionRequest({
+      requested_due_at: task.due_date || "",
+      reason: "",
+    });
+    setExtensionDialogOpen(true);
+  };
+
   const getActionButton = (task: Task) => {
     switch (task.status) {
       case "todo":
@@ -493,7 +627,26 @@ export function ProjectDetail() {
                       
                       {/* Action Buttons */}
                       <div className="flex flex-col gap-2">
-                        {getActionButton(task)}
+                        {task.status !== 'done' && (
+                          <>
+                            <Button
+                              size="sm"
+                              onClick={() => handleMarkAsDone(task.id)}
+                              className="bg-green-600 hover:bg-green-700"
+                            >
+                              <CheckCircle2 className="w-3 h-3 mr-1" />
+                              Done
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openExtensionDialog(task)}
+                            >
+                              <CalendarClock className="w-3 h-3 mr-1" />
+                              Request Extension
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -503,6 +656,70 @@ export function ProjectDetail() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Extension Request Dialog */}
+      <Dialog open={extensionDialogOpen} onOpenChange={setExtensionDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Request Deadline Extension</DialogTitle>
+            <DialogDescription>
+              Request a new deadline for: <strong>{selectedTaskForExtension?.title}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="current-due-date">Current Due Date</Label>
+              <Input
+                id="current-due-date"
+                type="date"
+                value={selectedTaskForExtension?.due_date || ""}
+                disabled
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="requested-due-date">
+                Requested New Due Date <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="requested-due-date"
+                type="date"
+                value={extensionRequest.requested_due_at}
+                onChange={(e) => setExtensionRequest({ ...extensionRequest, requested_due_at: e.target.value })}
+                min={selectedTaskForExtension?.due_date || new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="extension-reason">
+                Reason <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="extension-reason"
+                value={extensionRequest.reason}
+                onChange={(e) => setExtensionRequest({ ...extensionRequest, reason: e.target.value })}
+                placeholder="Explain why you need more time..."
+                rows={4}
+                required
+              />
+              <p className="text-xs text-muted-foreground">Please provide a clear reason for your extension request</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setExtensionDialogOpen(false);
+                setSelectedTaskForExtension(null);
+                setExtensionRequest({ requested_due_at: "", reason: "" });
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={handleRequestExtension}>
+              Send Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

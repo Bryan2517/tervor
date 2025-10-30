@@ -1218,8 +1218,10 @@ export type Database = {
       notification_type:
         | "task_assigned"
         | "task_due_changed"
+        | "task_due_reminder"
         | "task_commented"
         | "mention"
+        | "extension_requested"
         | "extension_approved"
         | "extension_rejected"
         | "transfer_approved"
@@ -1363,8 +1365,10 @@ export const Constants = {
       notification_type: [
         "task_assigned",
         "task_due_changed",
+        "task_due_reminder",
         "task_commented",
         "mention",
+        "extension_requested",
         "extension_approved",
         "extension_rejected",
         "transfer_approved",
