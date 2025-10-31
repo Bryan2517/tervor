@@ -168,21 +168,44 @@ export function AttendanceHistory() {
         const dateAttendance = attendanceData?.filter((a) => a.local_date === date) || [];
         const attendedUserIds = dateAttendance.map((a) => a.user_id);
 
-        // Add present records with status
+        // Add records; if clock-in occurs after work end time, treat as absent
         dateAttendance.forEach((record) => {
           const user = allUsersData?.find((u) => u.id === record.user_id);
           const role = membersData?.find((m) => m.user_id === record.user_id)?.role;
-          const status = getArrivalStatus(record.clock_in_at);
-          const hasOvertime = record.clock_out_at && checkHasOvertime(record.clock_in_at, record.clock_out_at);
 
-          allRecords.push({
-            ...record,
-            users: user || { email: "Unknown", full_name: null },
-            role: role || "employee",
-            status,
-            hasOvertime,
-            isAbsent: false,
-          });
+          // Determine if clock-in is after work end time for that date
+          let isAfterWorkEnd = false;
+          if (record.clock_in_at) {
+            const clockIn = new Date(record.clock_in_at);
+            const workEnd = new Date(clockIn);
+            const [endHours, endMinutes] = workHours.work_end_time.split(":").map(Number);
+            workEnd.setHours(endHours, endMinutes, 0, 0);
+            isAfterWorkEnd = clockIn.getTime() > workEnd.getTime();
+          }
+
+          if (isAfterWorkEnd) {
+            // Count as absent for the day
+            allRecords.push({
+              id: `absent-after-end-${record.local_date}-${record.user_id}`,
+              user_id: record.user_id,
+              local_date: record.local_date,
+              users: user || { email: "Unknown", full_name: null },
+              role: role || "employee",
+              status: "absent",
+              isAbsent: true,
+            } as AttendanceRecord);
+          } else {
+            const status = getArrivalStatus(record.clock_in_at);
+            const hasOvertime = record.clock_out_at && checkHasOvertime(record.clock_in_at, record.clock_out_at);
+            allRecords.push({
+              ...record,
+              users: user || { email: "Unknown", full_name: null },
+              role: role || "employee",
+              status,
+              hasOvertime,
+              isAbsent: false,
+            });
+          }
         });
 
         // Check if it's past work end time for this date to determine absent status
@@ -430,20 +453,10 @@ export function AttendanceHistory() {
           </CardContent>
         </Card>
 
-        {/* Attendance Records */}
-        {filteredRecords.length === 0 ? (
-          <Card>
-            <CardContent className="py-12">
-              <div className="text-center">
-                <Clock className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
-                <p className="text-muted-foreground">No attendance records found</p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            {/* Group by dates */}
-            {dateGroups.map((dateGroup) => {
+        {/* Attendance Records - always show 30-day sections, even if none match filter */}
+        <>
+          {/* Group by dates */}
+          {dateGroups.map((dateGroup) => {
                 return (
                   <Card key={dateGroup.date}>
                     <CardHeader>
@@ -568,69 +581,67 @@ export function AttendanceHistory() {
                   </Card>
                 );
               })}
-
-            {/* Pagination - Hidden since we show all dates */}
-            {false && totalPages > 1 && (
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm text-muted-foreground">
-                      Showing {startIndex + 1} to {Math.min(endIndex, filteredRecords.length)} of {filteredRecords.length} records
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => goToPage(currentPage - 1)}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                        Previous
-                      </Button>
-                      
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                          let pageNum;
-                          if (totalPages <= 5) {
-                            pageNum = i + 1;
-                          } else if (currentPage <= 3) {
-                            pageNum = i + 1;
-                          } else if (currentPage >= totalPages - 2) {
-                            pageNum = totalPages - 4 + i;
-                          } else {
-                            pageNum = currentPage - 2 + i;
-                          }
-
-                          return (
-                            <Button
-                              key={pageNum}
-                              variant={currentPage === pageNum ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => goToPage(pageNum)}
-                              className="w-10"
-                            >
-                              {pageNum}
-                            </Button>
-                          );
-                        })}
-                      </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => goToPage(currentPage + 1)}
-                        disabled={currentPage === totalPages}
-                      >
-                        Next
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
+          {/* Pagination - Hidden since we show all dates */}
+          {false && totalPages > 1 && (
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    Showing {startIndex + 1} to {Math.min(endIndex, filteredRecords.length)} of {filteredRecords.length} records
                   </div>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => goToPage(pageNum)}
+                            className="w-10"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                    >
+                      Next
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
       </div>
     </div>
   );

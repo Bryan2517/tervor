@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { OnlinePresence } from "../shared/OnlinePresence";
+import { ModeToggle } from "@/components/mode-toggle";
 import { InvitationManager } from "../shared/InvitationManager";
 import { ClockOutButton } from "../shared/ClockOutButton";
 import { NotificationBell } from "../shared/NotificationBell";
@@ -153,6 +154,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
                   <Gift className="w-5 h-5" />
                 </Button>
               </Link>
+              <ModeToggle />
               <ClockOutButton 
                 organizationId={organization.id}
                 organizationName={organization.name}
@@ -309,9 +311,9 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/owner/settings">
+                    <Link to="/owner/organization-settings">
                       <Settings className="w-6 h-6" />
-                      <span>Settings</span>
+                      <span>Organization Settings</span>
                     </Link>
                   </Button>
                 </div>

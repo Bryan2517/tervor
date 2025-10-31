@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/enhanced-button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModeToggle } from "@/components/mode-toggle";
 import { Progress } from "@/components/ui/progress";
 import { OnlinePresence } from "./shared/OnlinePresence";
 import { InvitationManager } from "./shared/InvitationManager";
@@ -341,6 +342,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                 <span className="font-semibold">{stats.points}</span>
               </Card>
               {userId && <NotificationBell userId={userId} />}
+              <ModeToggle />
               <Button variant="ghost" size="icon" asChild aria-label="Shop">
                 <Link to="/employee/shop"><Gift className="w-5 h-5" /></Link>
               </Button>

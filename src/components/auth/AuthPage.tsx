@@ -9,12 +9,14 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Users, Target, Award, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
 import { JoinOrganization } from "./JoinOrganization";
+import { ModeToggle } from "@/components/mode-toggle";
 
 const authSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   confirmPassword: z.string().optional(),
   fullName: z.string().min(2, "Full name must be at least 2 characters").optional(),
+  phone: z.string().min(10, "Please enter a valid phone number").optional(),
 }).refine((data) => {
   if (data.confirmPassword !== undefined) {
     return data.password === data.confirmPassword;
@@ -36,6 +38,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -91,12 +94,21 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
       const formData = {
         email: email.trim(),
         password,
-        ...(isSignUp ? { confirmPassword, fullName: fullName.trim() } : {}),
+        ...(isSignUp ? { confirmPassword, fullName: fullName.trim(), phone: phone.trim() } : {}),
       };
 
       const validation = authSchema.parse(formData);
 
       if (isSignUp) {
+        if (!phone.trim()) {
+          toast({
+            title: "Phone number required",
+            description: "Please enter your phone number to continue.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
         const { error } = await supabase.auth.signUp({
           email: validation.email,
           password: validation.password,
@@ -104,6 +116,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: validation.fullName,
+              phone: phone.trim(),
             }
           }
         });
@@ -164,11 +177,14 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
+      <div className="fixed top-4 right-4 z-50">
+        <ModeToggle />
+      </div>
       <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
         {/* Hero Section */}
         <div className="text-center lg:text-left text-white">
           <div className="flex items-center gap-3 justify-center lg:justify-start mb-6">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
+            <div className="w-12 h-12 bg-secondary/40 rounded-xl flex items-center justify-center backdrop-blur-sm">
               <Sparkles className="w-6 h-6" />
             </div>
             <h1 className="text-3xl font-bold">Trevor</h1>
@@ -176,7 +192,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
           
           <h2 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
             Transform Your Team's
-            <span className="block bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
+            <span className="block bg-gradient-to-r from-yellow-300 to-orange-300 dark:from-yellow-200 dark:to-orange-200 bg-clip-text text-transparent">
               Productivity
             </span>
           </h2>
@@ -188,21 +204,21 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-8">
             <div className="text-center">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+              <div className="w-12 h-12 bg-secondary/30 rounded-lg flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                 <Target className="w-6 h-6" />
               </div>
               <h3 className="font-semibold mb-2">Smart Task Management</h3>
               <p className="text-sm text-white/80">Organize work with phases, priorities, and real-time tracking</p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+              <div className="w-12 h-12 bg-secondary/30 rounded-lg flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                 <Award className="w-6 h-6" />
               </div>
               <h3 className="font-semibold mb-2">Rewards System</h3>
               <p className="text-sm text-white/80">Earn points for completed tasks and redeem exciting rewards</p>
             </div>
             <div className="text-center">
-              <div className="w-12 h-12 bg-white/10 rounded-lg flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
+              <div className="w-12 h-12 bg-secondary/30 rounded-lg flex items-center justify-center mx-auto mb-3 backdrop-blur-sm">
                 <Users className="w-6 h-6" />
               </div>
               <h3 className="font-semibold mb-2">Team Collaboration</h3>
@@ -216,7 +232,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
           {showJoinOrg ? (
             <JoinOrganization onJoinSuccess={() => window.location.reload()} />
           ) : (
-            <Card variant="elevated" className="w-full max-w-md mx-auto bg-white/95 backdrop-blur-sm border-white/20">
+            <Card variant="elevated" className="w-full max-w-md mx-auto bg-card backdrop-blur-sm border-border">
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl">
                   {isSignUp ? "Join Trevor" : "Welcome Back"}
@@ -256,10 +272,23 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                       required
                     />
                   </div>
+                  {isSignUp && (
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <Input
+                        id="phone"
+                        type="tel"
+                        placeholder="Enter your phone number"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        required={isSignUp}
+                      />
+                    </div>
+                  )}
                   
                   <div className="space-y-2">
                     <Label htmlFor="password">Password</Label>
-                    <div className="relative">
+                  <div className="relative">
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
@@ -272,7 +301,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
                       >
                         {showPassword ? (
                           <EyeOff className="w-4 h-4" />
@@ -299,7 +328,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                         <button
                           type="button"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground focus:outline-none"
                         >
                           {showConfirmPassword ? (
                             <EyeOff className="w-4 h-4" />
@@ -340,7 +369,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                       <span className="w-full border-t border-muted" />
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-muted-foreground">Or</span>
+                      <span className="bg-card px-2 text-muted-foreground">Or</span>
                     </div>
                   </div>
                   
@@ -371,7 +400,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowJoinOrg(false)}
-                className="text-white hover:text-white/80"
+                className="text-foreground hover:text-foreground/80"
               >
                 ← Back to Sign In
               </Button>

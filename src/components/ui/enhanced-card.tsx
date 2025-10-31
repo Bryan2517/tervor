@@ -4,13 +4,13 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const cardVariants = cva(
-  "rounded-lg border bg-card text-card-foreground transition-all",
+  "rounded-lg border bg-card text-card-foreground transition-all ring-0 ring-transparent focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background",
   {
     variants: {
       variant: {
         default: "shadow-card",
-        elevated: "shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300",
-        interactive: "shadow-card hover:shadow-lg hover:bg-card-hover cursor-pointer transition-all duration-200",
+        elevated: "shadow-lg hover:shadow-xl hover:ring-1 hover:ring-border/60 transform hover:-translate-y-1 transition-all duration-300",
+        interactive: "shadow-card hover:shadow-lg hover:ring-1 hover:ring-border/60 hover:bg-card-hover cursor-pointer transition-all duration-200",
         gradient: "bg-gradient-card shadow-lg",
         points: "bg-gradient-points text-points-foreground shadow-lg",
         success: "border-success/20 bg-success/5 shadow-sm",

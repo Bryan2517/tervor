@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ModeToggle } from "@/components/mode-toggle";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { InvitationManager } from "../shared/InvitationManager";
 import { ClockOutButton } from "../shared/ClockOutButton";
@@ -164,6 +165,7 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
             </div>
             
             <div className="flex items-center gap-4">
+              <ModeToggle />
               {userId && <NotificationBell userId={userId} />}
               <Link to="/admin/shop">
                 <Button variant="ghost" size="icon" aria-label="Shop">

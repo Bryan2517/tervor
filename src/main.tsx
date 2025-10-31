@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import { InvitePage } from "./pages/InvitePage";
 import { OrganizationSettings } from "./pages/owner/OrganizationSettings";
@@ -264,7 +265,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <OrganizationProvider>
-        <RouterProvider router={router} />
+        <ThemeProvider>
+          <RouterProvider router={router} />
+        </ThemeProvider>
       </OrganizationProvider>
     </QueryClientProvider>
   </StrictMode>
