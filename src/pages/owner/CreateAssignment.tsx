@@ -351,15 +351,30 @@ export default function CreateAssignment() {
                     id="points"
                     type="number"
                     min="0"
-                    value={formData.completion_points}
-                    onChange={(e) => setFormData({ ...formData, completion_points: parseInt(e.target.value) || 0 })}
+                    max="100"
+                    value={formData.completion_points === 0 ? "" : formData.completion_points}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === "") {
+                        setFormData({ ...formData, completion_points: 0 });
+                      } else {
+                        const numValue = parseInt(value) || 0;
+                        const clampedValue = Math.min(Math.max(numValue, 0), 100);
+                        setFormData({ ...formData, completion_points: clampedValue });
+                      }
+                    }}
+                    onFocus={(e) => {
+                      if (e.target.value === "0" || e.target.value === "") {
+                        e.target.select();
+                      }
+                    }}
                     placeholder="0"
                     disabled={loading}
                     className="pl-10"
                   />
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Points awarded to the supervisor when assignment is completed
+                  Points awarded to the supervisor when assignment is completed (max 100)
                 </p>
               </div>
 

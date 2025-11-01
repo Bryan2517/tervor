@@ -18,6 +18,7 @@ import {
   Check,
   UserPlus,
   AlertTriangle,
+  Coins,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,10 @@ interface Notification {
     assigned_by?: string;
     assigner_name?: string;
     hours_until_due?: number;
+    points?: number;
+    reason_code?: string;
+    project_id?: string;
+    project_name?: string;
     message: string;
   };
   read_at: string | null;
@@ -184,6 +189,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         return <UserPlus className="w-5 h-5 text-blue-600" />;
       case "task_due_reminder":
         return <AlertTriangle className="w-5 h-5 text-orange-600" />;
+      case "points_earned":
+        return <Coins className="w-5 h-5 text-yellow-600" />;
       default:
         return <Bell className="w-5 h-5 text-muted-foreground" />;
     }
@@ -201,6 +208,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         return "bg-blue-50 border-blue-200";
       case "task_due_reminder":
         return "bg-orange-50 border-orange-200";
+      case "points_earned":
+        return "bg-yellow-50 border-yellow-200";
       default:
         return "bg-muted/50 border-muted";
     }
@@ -228,32 +237,73 @@ export function NotificationBell({ userId }: NotificationBellProps) {
       return;
     }
 
-    if (n.type === "task_assigned") {
-      // Route to the most relevant task list per role
-      if (role === "employee") {
-        navigate(`/employee/projects`);
-      } else if (role === "supervisor") {
-        navigate(`/supervisor/projects`);
-      } else if (role === "admin") {
-        navigate(`/admin/task-assignment`);
-      } else if (role === "owner") {
-        navigate(`/owner/task-assignment`);
+    // For task-related notifications, navigate to the project detail page
+    if (n.type === "task_assigned" || n.type === "task_due_reminder") {
+      if (n.payload.task_id) {
+        try {
+          // Fetch the task to get the project_id and task_type
+          const { data: taskData, error: taskError } = await supabase
+            .from("tasks")
+            .select("project_id, task_type")
+            .eq("id", n.payload.task_id)
+            .single();
+
+          if (taskError || !taskData?.project_id) {
+            console.error("Error fetching task:", taskError);
+            // Fallback to general projects page
+            navigateToFallbackProjectPage(role);
+            return;
+          }
+
+          // Fetch the project to get its name
+          const { data: projectData, error: projectError } = await supabase
+            .from("projects")
+            .select("name")
+            .eq("id", taskData.project_id)
+            .single();
+
+          if (projectError || !projectData?.name) {
+            console.error("Error fetching project:", projectError);
+            // Fallback to general projects page
+            navigateToFallbackProjectPage(role);
+            return;
+          }
+
+          // Determine which tab to show based on task_type
+          // task_type 'assignment' -> assignments tab, otherwise -> tasks tab
+          const tab = taskData.task_type === 'assignment' ? 'assignments' : 'tasks';
+
+          // Navigate to the specific project detail page with the correct tab
+          navigate(`/${role}/projects/${encodeURIComponent(projectData.name)}?tab=${tab}`);
+        } catch (error) {
+          console.error("Error navigating to project:", error);
+          // Fallback to general projects page
+          navigateToFallbackProjectPage(role);
+        }
+      } else {
+        // No task_id available, fallback to general page
+        navigateToFallbackProjectPage(role);
       }
       return;
     }
 
-    if (n.type === "task_due_reminder") {
-      // Send to active projects view per role
-      if (role === "employee") {
-        navigate(`/employee/projects`);
-      } else if (role === "supervisor") {
-        navigate(`/supervisor/projects`);
-      } else if (role === "admin") {
-        navigate(`/admin/progress-tracking`);
-      } else if (role === "owner") {
-        navigate(`/owner/manage-projects`);
-      }
+    // For points earned notifications, navigate to shop
+    if (n.type === "points_earned") {
+      navigate(`/${role}/shop`);
       return;
+    }
+  };
+
+  const navigateToFallbackProjectPage = (role: string) => {
+    // Fallback navigation if we can't find the project
+    if (role === "employee") {
+      navigate(`/employee/projects`);
+    } else if (role === "supervisor") {
+      navigate(`/supervisor/projects`);
+    } else if (role === "admin") {
+      navigate(`/admin/task-assignment`);
+    } else if (role === "owner") {
+      navigate(`/owner/task-assignment`);
     }
   };
 
@@ -334,6 +384,12 @@ export function NotificationBell({ userId }: NotificationBellProps) {
                       {notification.payload.due_date && (
                         <p className="text-xs text-muted-foreground mb-1">
                           Due: {new Date(notification.payload.due_date).toLocaleDateString()}
+                        </p>
+                      )}
+                      {notification.payload.points && (
+                        <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                          <Coins className="w-3 h-3" />
+                          <span>{notification.payload.points} points earned</span>
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">

@@ -44,6 +44,7 @@ import SupervisorDirectReports from "./pages/supervisor/DirectReports";
 import SupervisorTaskOverseeing from "./pages/supervisor/TaskOverseeing";
 import SupervisorCompleteToday from "./pages/supervisor/CompleteToday";
 import { Settings as SupervisorSettings } from "./pages/supervisor/Settings";
+import SupervisorTeams from "./pages/supervisor/Teams";
 import { Settings as EmployeeSettings } from "./pages/employee/Settings";
 import EmployeeProjects from "./pages/employee/Projects";
 import { ProjectDetail as EmployeeProjectDetail } from "./pages/employee/ProjectDetail";
@@ -242,6 +243,10 @@ const router = createBrowserRouter([
       {
         path: "supervisor/settings",
         element: <SupervisorSettings />,
+      },
+      {
+        path: "supervisor/teams",
+        element: <SupervisorTeams />,
       },
       {
         path: "supervisor/attendance-history",

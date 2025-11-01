@@ -16,7 +16,6 @@ import {
   CheckCircle2, 
   TrendingUp,
   Calendar,
-  UserPlus,
   AlertTriangle,
   Gift,
   Coins,
@@ -107,7 +106,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
       }
 
       // Fetch supervisor-specific statistics
-      const [tasksData, completedTasksData] = await Promise.all([
+      const [tasksData, completedTasksData, pointsData] = await Promise.all([
         supabase
           .from('tasks')
           .select('status, created_at, project:projects!inner(organization_id)')
@@ -116,7 +115,12 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
           .from('tasks')
           .select('status, priority, project:projects!inner(organization_id)')
           .eq('project.organization_id', organization.id)
-          .eq('status', 'done')
+          .eq('status', 'done'),
+        // Fetch actual points from points_ledger
+        supabase
+          .from('points_ledger')
+          .select('delta')
+          .eq('user_id', user.id)
       ]);
 
       const tasksOverseeing = tasksData.data?.length || 0;
@@ -128,14 +132,13 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
         new Date(task.created_at).toDateString() === today
       ).length || 0;
 
-      // Calculate total points
-      const completedTasks = completedTasksData.data || [];
-      const totalPoints = completedTasks.reduce((sum, task) => {
-        const points = task.priority === 'high' ? 3 : task.priority === 'medium' ? 2 : 1;
-        return sum + points;
+      // Calculate total points from points_ledger (same as employee dashboard)
+      const totalPoints = (pointsData.data || []).reduce((sum, transaction) => {
+        return sum + transaction.delta;
       }, 0);
 
       // Calculate efficiency
+      const completedTasks = completedTasksData.data || [];
       const totalTasks = tasksData.data?.length || 0;
       const teamEfficiency = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
@@ -187,15 +190,10 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
               <ModeToggle />
               {userId && <NotificationBell userId={userId} />}
               <Link to="/supervisor/shop">
-                <Button variant="ghost" size="icon" aria-label="Shop">
-                  <Gift className="w-5 h-5" />
-                </Button>
-              </Link>
-              <Link to="/supervisor/manage-team">
-                <Button variant="outline">
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Manage Team
-                </Button>
+                <Card variant="points" padding="sm" className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity">
+                  <Coins className="w-5 h-5" />
+                  <span className="font-semibold">{stats.totalPoints}</span>
+                </Card>
               </Link>
               <ClockOutButton 
                 organizationId={organization.id}
@@ -299,6 +297,12 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
                     <Link to="/supervisor/projects">
                       <FolderOpen className="w-6 h-6" />
                       <span>Projects</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/teams">
+                      <Users className="w-6 h-6" />
+                      <span>Teams</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>

@@ -337,15 +337,14 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
             </div>
             
             <div className="flex items-center gap-4">
-              <Card variant="points" padding="sm" className="flex items-center gap-2">
-                <Coins className="w-5 h-5" />
-                <span className="font-semibold">{stats.points}</span>
-              </Card>
-              {userId && <NotificationBell userId={userId} />}
               <ModeToggle />
-              <Button variant="ghost" size="icon" asChild aria-label="Shop">
-                <Link to="/employee/shop"><Gift className="w-5 h-5" /></Link>
-              </Button>
+              {userId && <NotificationBell userId={userId} />}
+              <Link to="/employee/shop">
+                <Card variant="points" padding="sm" className="flex items-center gap-2 cursor-pointer hover:opacity-90 transition-opacity">
+                  <Coins className="w-5 h-5" />
+                  <span className="font-semibold">{stats.points}</span>
+                </Card>
+              </Link>
               <Button variant="outline" asChild>
                 <Link to="/employee/settings"><Settings/>Settings</Link>
               </Button>

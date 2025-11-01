@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +90,7 @@ interface ProjectStats {
 export function ProjectDetail() {
   const { projectName } = useParams<{ projectName: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { organization } = useOrganization();
   const [project, setProject] = useState<Project | null>(null);
@@ -126,6 +127,14 @@ export function ProjectDetail() {
     assigned_supervisor_id: "",
     completion_points: 0,
   });
+
+  useEffect(() => {
+    // Initialize tab from query param if provided
+    const tab = searchParams.get("tab");
+    if (tab && ["tasks", "assignments", "reports"].includes(tab)) {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (projectName && organization) {
@@ -755,13 +764,28 @@ export function ProjectDetail() {
                           id="task-points"
                           type="number"
                           min="0"
-                          value={newTask.completion_points}
-                          onChange={(e) => setNewTask({ ...newTask, completion_points: parseInt(e.target.value) || 0 })}
+                          max="100"
+                          value={newTask.completion_points === 0 ? "" : newTask.completion_points}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              setNewTask({ ...newTask, completion_points: 0 });
+                            } else {
+                              const numValue = parseInt(value) || 0;
+                              const clampedValue = Math.min(Math.max(numValue, 0), 100);
+                              setNewTask({ ...newTask, completion_points: clampedValue });
+                            }
+                          }}
+                          onFocus={(e) => {
+                            if (e.target.value === "0" || e.target.value === "") {
+                              e.target.select();
+                            }
+                          }}
                           placeholder="Points to award"
                           className="pl-10"
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">Points awarded to the employee when task is completed</p>
+                      <p className="text-xs text-muted-foreground">Points awarded to the employee when task is completed (max 100)</p>
                     </div>
                   </div>
                   <DialogFooter>
@@ -969,13 +993,28 @@ export function ProjectDetail() {
                           id="assignment-points"
                           type="number"
                           min="0"
-                          value={newAssignment.completion_points}
-                          onChange={(e) => setNewAssignment({ ...newAssignment, completion_points: parseInt(e.target.value) || 0 })}
+                          max="100"
+                          value={newAssignment.completion_points === 0 ? "" : newAssignment.completion_points}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            if (value === "") {
+                              setNewAssignment({ ...newAssignment, completion_points: 0 });
+                            } else {
+                              const numValue = parseInt(value) || 0;
+                              const clampedValue = Math.min(Math.max(numValue, 0), 100);
+                              setNewAssignment({ ...newAssignment, completion_points: clampedValue });
+                            }
+                          }}
+                          onFocus={(e) => {
+                            if (e.target.value === "0" || e.target.value === "") {
+                              e.target.select();
+                            }
+                          }}
                           placeholder="Points to award"
                           className="pl-10"
                         />
                       </div>
-                      <p className="text-xs text-muted-foreground">Points awarded to the supervisor when assignment is completed</p>
+                      <p className="text-xs text-muted-foreground">Points awarded to the supervisor when assignment is completed (max 100)</p>
                     </div>
                   </div>
                   <DialogFooter>
