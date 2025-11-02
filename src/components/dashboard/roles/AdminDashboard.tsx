@@ -167,15 +167,9 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
             <div className="flex items-center gap-4">
               <ModeToggle />
               {userId && <NotificationBell userId={userId} />}
-              <Link to="/admin/shop">
-                <Button variant="ghost" size="icon" aria-label="Shop">
+              <Link to="/admin/shop/manage">
+                <Button variant="ghost" size="icon" aria-label="Manage Shop">
                   <Gift className="w-5 h-5" />
-                </Button>
-              </Link>
-              <Link to="/admin/manage-team">
-                <Button variant="outline">
-                  <Users className="w-4 h-4 mr-2" />
-                  Manage Team
                 </Button>
               </Link>
               <ClockOutButton 
@@ -300,7 +294,7 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
                   <Link to="/admin/manage-team">
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
                       <Users className="w-6 h-6" />
-                      <span>Manage Team</span>
+                      <span>Manage Members</span>
                     </Button>
                   </Link>
                   <Link to="/admin/teams">
@@ -309,16 +303,16 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
                       <span>Team Management</span>
                     </Button>
                   </Link>
-                  <Link to="/admin/task-assignment">
+                  <Link to="/admin/tasks/new">
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
                       <Target className="w-6 h-6" />
-                      <span>Task Assignment</span>
+                      <span>Create Task</span>
                     </Button>
                   </Link>
-                  <Link to="/admin/time-management">
+                  <Link to="/admin/assignments/new">
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
-                      <Clock className="w-6 h-6" />
-                      <span>Time Management</span>
+                      <Users className="w-6 h-6" />
+                      <span>Create Assignment</span>
                     </Button>
                   </Link>
                   <Link to="/admin/quality-review">
@@ -333,16 +327,10 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
                       <span>Time Logging</span>
                     </Button>
                   </Link>
-                  <Link to="/admin/shop">
+                  <Link to="/admin/shop/manage">
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
                       <Gift className="w-6 h-6" />
-                      <span>Rewards Shop</span>
-                    </Button>
-                  </Link>
-                  <Link to="/admin/settings">
-                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
-                      <Settings className="w-6 h-6" />
-                      <span>Settings</span>
+                      <span>Manage Shop</span>
                     </Button>
                   </Link>
                 </div>

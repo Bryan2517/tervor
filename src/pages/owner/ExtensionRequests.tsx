@@ -61,17 +61,20 @@ export default function ExtensionRequests() {
   const [decisionNote, setDecisionNote] = useState("");
   const [searchParams] = useSearchParams();
 
+  // Initialize tab from query param only once on mount or when URL changes
   useEffect(() => {
-    // Initialize tab from query param if provided
     const tab = searchParams.get("tab");
     if (tab && ["pending", "approved", "rejected"].includes(tab)) {
       setActiveTab(tab);
     }
+  }, [searchParams]);
 
+  // Fetch data when organization or activeTab changes
+  useEffect(() => {
     if (organization) {
       fetchExtensionRequests();
     }
-  }, [organization, activeTab, searchParams]);
+  }, [organization, activeTab]);
 
   const fetchExtensionRequests = async () => {
     try {

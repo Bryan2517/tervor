@@ -39,7 +39,7 @@ BEGIN
     INSERT INTO notifications (user_id, type, payload)
     VALUES (
       admin_user_id,
-      'extension_requested',
+      'extension_requested'::notification_type,
       jsonb_build_object(
         'extension_request_id', NEW.id,
         'task_id', NEW.task_id,
@@ -77,8 +77,8 @@ BEGIN
     VALUES (
       NEW.requester_id,
       CASE 
-        WHEN NEW.status = 'approved' THEN 'extension_approved'
-        ELSE 'extension_rejected'
+        WHEN NEW.status = 'approved' THEN 'extension_approved'::notification_type
+        ELSE 'extension_rejected'::notification_type
       END,
       jsonb_build_object(
         'extension_request_id', NEW.id,

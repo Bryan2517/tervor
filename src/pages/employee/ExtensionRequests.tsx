@@ -19,7 +19,8 @@ import {
   Calendar,
   FileText,
   AlertCircle,
-  ArrowLeft
+  ArrowLeft,
+  Plus
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -48,17 +49,32 @@ interface ExtensionRequest {
   };
 }
 
+interface Task {
+  id: string;
+  title: string;
+  description: string;
+  due_date: string;
+  priority: string;
+  status: string;
+  project?: {
+    name: string;
+  };
+}
+
 export default function ExtensionRequests() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { organization } = useOrganization();
   const [requests, setRequests] = useState<ExtensionRequest[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("pending");
-  const [selectedRequest, setSelectedRequest] = useState<ExtensionRequest | null>(null);
-  const [decisionDialogOpen, setDecisionDialogOpen] = useState(false);
-  const [decisionAction, setDecisionAction] = useState<'approve' | 'reject'>('approve');
-  const [decisionNote, setDecisionNote] = useState("");
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [extensionRequest, setExtensionRequest] = useState({
+    requested_due_at: "",
+    reason: "",
+  });
   const [searchParams] = useSearchParams();
 
   // Initialize tab from query param only once on mount or when URL changes
@@ -71,46 +87,22 @@ export default function ExtensionRequests() {
 
   // Fetch data when organization or activeTab changes
   useEffect(() => {
-    if (organization) {
-      fetchExtensionRequests();
-    }
+    const fetchData = async () => {
+      if (organization) {
+        await Promise.all([fetchExtensionRequests(), fetchTasks()]);
+      }
+    };
+    fetchData();
   }, [organization, activeTab]);
 
   const fetchExtensionRequests = async () => {
     try {
       setLoading(true);
 
-      if (!organization) return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-      // Get all projects in the organization
-      const { data: orgProjects } = await supabase
-        .from("projects")
-        .select("id")
-        .eq("organization_id", organization.id);
-
-      if (!orgProjects || orgProjects.length === 0) {
-        setRequests([]);
-        setLoading(false);
-        return;
-      }
-
-      const projectIds = orgProjects.map(p => p.id);
-
-      // Get all tasks in these projects
-      const { data: orgTasks } = await supabase
-        .from("tasks")
-        .select("id")
-        .in("project_id", projectIds);
-
-      if (!orgTasks || orgTasks.length === 0) {
-        setRequests([]);
-        setLoading(false);
-        return;
-      }
-
-      const taskIds = orgTasks.map(t => t.id);
-
-      // Fetch extension requests for those tasks
+      // Fetch extension requests for the current user
       const { data: extensionData, error } = await supabase
         .from("extension_requests")
         .select(`
@@ -118,7 +110,7 @@ export default function ExtensionRequests() {
           requester:users!extension_requests_requester_id_fkey(full_name, email),
           task:tasks!extension_requests_task_id_fkey(title, description, due_date, task_type, priority)
         `)
-        .in("task_id", taskIds)
+        .eq("requester_id", user.id)
         .eq("status", activeTab)
         .order("created_at", { ascending: false });
 
@@ -137,62 +129,119 @@ export default function ExtensionRequests() {
     }
   };
 
-  const openDecisionDialog = (request: ExtensionRequest, action: 'approve' | 'reject') => {
-    setSelectedRequest(request);
-    setDecisionAction(action);
-    setDecisionNote("");
-    setDecisionDialogOpen(true);
+  const fetchTasks = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || !organization) return;
+
+      // Get all projects in the organization
+      const { data: orgProjects } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("organization_id", organization.id);
+
+      if (!orgProjects || orgProjects.length === 0) {
+        setTasks([]);
+        return;
+      }
+
+      const projectIds = orgProjects.map(p => p.id);
+
+      // Get all tasks assigned to this employee
+      const { data: tasksData, error } = await supabase
+        .from("tasks")
+        .select(`
+          id,
+          title,
+          description,
+          due_date,
+          priority,
+          status,
+          project:projects!tasks_project_id_fkey(name)
+        `)
+        .eq("task_type", "task")
+        .eq("assignee_id", user.id)
+        .in("project_id", projectIds)
+        .neq("status", "done")
+        .order("due_date", { ascending: true });
+
+      if (error) throw error;
+
+      setTasks(tasksData as any || []);
+    } catch (error) {
+      console.error("Error fetching tasks:", error);
+    }
   };
 
-  const handleDecision = async () => {
-    if (!selectedRequest) return;
+  const handleRequestExtension = async () => {
+    if (!selectedTask || !extensionRequest.requested_due_at) {
+      toast({
+        title: "Error",
+        description: "Please select a task and a new due date",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!extensionRequest.reason || extensionRequest.reason.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Please provide a reason for the extension request",
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Update the extension request
-      const { error: requestError } = await supabase
+      const { error } = await supabase
         .from("extension_requests")
-        .update({
-          status: decisionAction === 'approve' ? 'approved' : 'rejected',
-          decided_by: user.id,
-          decided_at: new Date().toISOString(),
-          decision_note: decisionNote || null,
-        })
-        .eq("id", selectedRequest.id);
+        .insert({
+          task_id: selectedTask.id,
+          requester_id: user.id,
+          requested_due_at: extensionRequest.requested_due_at,
+          reason: extensionRequest.reason,
+          status: "pending",
+        });
 
-      if (requestError) throw requestError;
-
-      // If approved, update the task's due date
-      if (decisionAction === 'approve' && selectedRequest.task_id) {
-        const { error: taskError } = await supabase
-          .from("tasks")
-          .update({
-            due_date: selectedRequest.requested_due_at,
-          })
-          .eq("id", selectedRequest.task_id);
-
-        if (taskError) throw taskError;
-      }
+      if (error) throw error;
 
       toast({
-        title: `Extension ${decisionAction === 'approve' ? 'Approved' : 'Rejected'}`,
-        description: `The extension request has been ${decisionAction === 'approve' ? 'approved' : 'rejected'} successfully`,
+        title: "Extension Request Sent",
+        description: "Your extension request has been sent to admins and owners for approval",
       });
 
-      setDecisionDialogOpen(false);
-      setSelectedRequest(null);
-      setDecisionNote("");
+      setRequestDialogOpen(false);
+      setSelectedTask(null);
+      setExtensionRequest({ requested_due_at: "", reason: "" });
       fetchExtensionRequests();
     } catch (error) {
-      console.error("Error processing decision:", error);
+      console.error("Error requesting extension:", error);
       toast({
         title: "Error",
-        description: "Failed to process the decision",
+        description: "Failed to request extension",
         variant: "destructive",
       });
     }
+  };
+
+  const openRequestDialog = (task: Task | null) => {
+    if (task) {
+      setSelectedTask(task);
+      setExtensionRequest({
+        requested_due_at: task.due_date || "",
+        reason: "",
+      });
+    } else {
+      setSelectedTask(null);
+      setExtensionRequest({
+        requested_due_at: "",
+        reason: "",
+      });
+    }
+    setRequestDialogOpen(true);
   };
 
   const getStatusBadge = (status: string) => {
@@ -223,15 +272,7 @@ export default function ExtensionRequests() {
     }
   };
 
-  const getTaskTypeBadge = (taskType: string) => {
-    return taskType === 'assignment' ? (
-      <Badge variant="outline" className="bg-purple-100 text-purple-800 border-purple-300">Assignment</Badge>
-    ) : (
-      <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-300">Task</Badge>
-    );
-  };
-
-  if (loading) {
+  if (loading && requests.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -243,15 +284,21 @@ export default function ExtensionRequests() {
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <CalendarClock className="w-6 h-6 text-primary" />
-            <div>
-              <h1 className="text-2xl font-bold">Extension Requests</h1>
-              <p className="text-sm text-muted-foreground">Review and manage deadline extension requests</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+              <CalendarClock className="w-6 h-6 text-primary" />
+              <div>
+                <h1 className="text-2xl font-bold">Extension Requests</h1>
+                <p className="text-sm text-muted-foreground">Request extensions and view your request history</p>
+              </div>
             </div>
+            <Button onClick={() => openRequestDialog(null)} className="gap-2">
+              <Plus className="w-4 h-4" />
+              Request Extension
+            </Button>
           </div>
         </div>
       </header>
@@ -284,10 +331,20 @@ export default function ExtensionRequests() {
                     </p>
                     <p className="text-sm text-muted-foreground">
                       {activeTab === 'pending' 
-                        ? "All extension requests have been reviewed"
-                        : `No extension requests have been ${activeTab}`
+                        ? "You don't have any pending extension requests"
+                        : `You don't have any ${activeTab} extension requests`
                       }
                     </p>
+                    {activeTab === 'pending' && (
+                      <Button 
+                        onClick={() => openRequestDialog(null)} 
+                        className="mt-4"
+                        variant="outline"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Request Extension
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -301,7 +358,6 @@ export default function ExtensionRequests() {
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
                             <h3 className="font-semibold text-lg">{request.task?.title}</h3>
-                            {getTaskTypeBadge(request.task?.task_type || '')}
                             {getPriorityBadge(request.task?.priority || '')}
                           </div>
                           {request.task?.description && (
@@ -319,22 +375,17 @@ export default function ExtensionRequests() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg">
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 text-sm">
-                            <User className="w-4 h-4 text-muted-foreground" />
-                            <span className="font-medium">Requested by:</span>
-                            <span>{request.requester?.full_name || 'Unknown'}</span>
-                          </div>
-                          <div className="flex items-center gap-2 text-sm">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span className="font-medium">Requested on:</span>
                             <span>{request.created_at ? format(new Date(request.created_at), "MMM dd, yyyy") : 'N/A'}</span>
                           </div>
-                        </div>
-                        <div className="space-y-3">
                           <div className="flex items-center gap-2 text-sm">
                             <AlertCircle className="w-4 h-4 text-muted-foreground" />
                             <span className="font-medium">Current due:</span>
                             <span>{request.task?.due_date ? format(new Date(request.task.due_date), "MMM dd, yyyy") : 'N/A'}</span>
                           </div>
+                        </div>
+                        <div className="space-y-3">
                           <div className="flex items-center gap-2 text-sm">
                             <CalendarClock className="w-4 h-4 text-primary" />
                             <span className="font-medium">Requested due:</span>
@@ -342,6 +393,13 @@ export default function ExtensionRequests() {
                               {request.requested_due_at ? format(new Date(request.requested_due_at), "MMM dd, yyyy") : 'N/A'}
                             </span>
                           </div>
+                          {request.decided_at && (
+                            <div className="flex items-center gap-2 text-sm">
+                              <Clock className="w-4 h-4 text-muted-foreground" />
+                              <span className="font-medium">Decided on:</span>
+                              <span>{format(new Date(request.decided_at), "MMM dd, yyyy")}</span>
+                            </div>
+                          )}
                         </div>
                       </div>
 
@@ -351,7 +409,7 @@ export default function ExtensionRequests() {
                           <div className="flex items-start gap-2 text-sm">
                             <FileText className="w-4 h-4 text-muted-foreground mt-0.5" />
                             <div>
-                              <span className="font-medium block mb-1">Reason:</span>
+                              <span className="font-medium block mb-1">Your Reason:</span>
                               <p className="text-muted-foreground">{request.reason}</p>
                             </div>
                           </div>
@@ -370,26 +428,6 @@ export default function ExtensionRequests() {
                           </div>
                         </div>
                       )}
-
-                      {/* Action Buttons (only for pending) */}
-                      {request.status === 'pending' && (
-                        <div className="flex items-center gap-3 pt-2">
-                          <Button
-                            onClick={() => openDecisionDialog(request, 'approve')}
-                            className="bg-green-600 hover:bg-green-700"
-                          >
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Approve Extension
-                          </Button>
-                          <Button
-                            onClick={() => openDecisionDialog(request, 'reject')}
-                            variant="destructive"
-                          >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Reject Request
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -399,61 +437,88 @@ export default function ExtensionRequests() {
         </Tabs>
       </div>
 
-      {/* Decision Dialog */}
-      <Dialog open={decisionDialogOpen} onOpenChange={setDecisionDialogOpen}>
-        <DialogContent>
+      {/* Request Extension Dialog */}
+      <Dialog open={requestDialogOpen} onOpenChange={setRequestDialogOpen}>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>
-              {decisionAction === 'approve' ? 'Approve' : 'Reject'} Extension Request
-            </DialogTitle>
+            <DialogTitle>Request Extension</DialogTitle>
             <DialogDescription>
-              {decisionAction === 'approve' 
-                ? `Approve the extension for "${selectedRequest?.task?.title || 'this task'}" to ${selectedRequest?.requested_due_at ? format(new Date(selectedRequest.requested_due_at), "MMM dd, yyyy") : 'the requested date'}`
-                : `Reject the extension request for "${selectedRequest?.task?.title || 'this task'}"`
-              }
+              Request an extension for a task deadline
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="decision-note">
-                Note (Optional)
+              <Label htmlFor="task-select">
+                Task <span className="text-destructive">*</span>
+              </Label>
+              <Select
+                value={selectedTask?.id || ""}
+                onValueChange={(value) => {
+                  const task = tasks.find(t => t.id === value);
+                  setSelectedTask(task || null);
+                  setExtensionRequest({
+                    requested_due_at: task?.due_date || "",
+                    reason: extensionRequest.reason,
+                  });
+                }}
+              >
+                <SelectTrigger id="task-select">
+                  <SelectValue placeholder="Select a task" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tasks.map((task) => (
+                    <SelectItem key={task.id} value={task.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{task.title}</span>
+                        <span className="text-xs text-muted-foreground">
+                          Due: {task.due_date ? format(new Date(task.due_date), "MMM dd, yyyy") : 'N/A'}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="extension-date">
+                New Due Date <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="extension-date"
+                type="date"
+                value={extensionRequest.requested_due_at}
+                onChange={(e) => setExtensionRequest({ ...extensionRequest, requested_due_at: e.target.value })}
+                min={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="extension-reason">
+                Reason <span className="text-destructive">*</span>
               </Label>
               <Textarea
-                id="decision-note"
-                value={decisionNote}
-                onChange={(e) => setDecisionNote(e.target.value)}
-                placeholder={`Add a note about your decision...`}
+                id="extension-reason"
+                value={extensionRequest.reason}
+                onChange={(e) => setExtensionRequest({ ...extensionRequest, reason: e.target.value })}
+                placeholder="Explain why you need more time..."
                 rows={4}
+                required
               />
+              <p className="text-xs text-muted-foreground">Please provide a clear reason for your extension request</p>
             </div>
           </div>
           <DialogFooter>
             <Button 
               variant="outline" 
               onClick={() => {
-                setDecisionDialogOpen(false);
-                setSelectedRequest(null);
-                setDecisionNote("");
+                setRequestDialogOpen(false);
+                setSelectedTask(null);
+                setExtensionRequest({ requested_due_at: "", reason: "" });
               }}
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleDecision}
-              className={decisionAction === 'approve' ? 'bg-green-600 hover:bg-green-700' : ''}
-              variant={decisionAction === 'reject' ? 'destructive' : 'default'}
-            >
-              {decisionAction === 'approve' ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 mr-2" />
-                  Approve
-                </>
-              ) : (
-                <>
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject
-                </>
-              )}
+            <Button onClick={handleRequestExtension}>
+              Send Request
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -461,4 +526,5 @@ export default function ExtensionRequests() {
     </div>
   );
 }
+
 

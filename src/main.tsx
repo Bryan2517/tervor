@@ -45,9 +45,11 @@ import SupervisorTaskOverseeing from "./pages/supervisor/TaskOverseeing";
 import SupervisorCompleteToday from "./pages/supervisor/CompleteToday";
 import { Settings as SupervisorSettings } from "./pages/supervisor/Settings";
 import SupervisorTeams from "./pages/supervisor/Teams";
+import SupervisorExtensionRequests from "./pages/supervisor/ExtensionRequests";
 import { Settings as EmployeeSettings } from "./pages/employee/Settings";
 import EmployeeProjects from "./pages/employee/Projects";
 import { ProjectDetail as EmployeeProjectDetail } from "./pages/employee/ProjectDetail";
+import EmployeeExtensionRequests from "./pages/employee/ExtensionRequests";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 
@@ -185,6 +187,14 @@ const router = createBrowserRouter([
         element: <AdminExtensionRequests />,
       },
       {
+        path: "admin/tasks/new",
+        element: <CreateTask />,
+      },
+      {
+        path: "admin/assignments/new",
+        element: <CreateAssignment />,
+      },
+      {
         path: "supervisor/shop",
         element: <Shop />,
       },
@@ -253,12 +263,20 @@ const router = createBrowserRouter([
         element: <AttendanceHistory />,
       },
       {
+        path: "supervisor/extension-requests",
+        element: <SupervisorExtensionRequests />,
+      },
+      {
         path: "employee/settings",
         element: <EmployeeSettings />,
       },
       {
         path: "employee/attendance-history",
         element: <AttendanceHistory />,
+      },
+      {
+        path: "employee/extension-requests",
+        element: <EmployeeExtensionRequests />,
       },
     ],
   },
