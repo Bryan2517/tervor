@@ -674,6 +674,7 @@ export type Database = {
           organization_id: string
           owner_id: string
           updated_at: string
+          current_phase: string | null
         }
         Insert: {
           created_at?: string
@@ -684,6 +685,7 @@ export type Database = {
           organization_id: string
           owner_id: string
           updated_at?: string
+          current_phase?: string | null
         }
         Update: {
           created_at?: string
@@ -694,6 +696,7 @@ export type Database = {
           organization_id?: string
           owner_id?: string
           updated_at?: string
+          current_phase?: string | null
         }
         Relationships: [
           {
@@ -1087,6 +1090,7 @@ export type Database = {
           id: string
           role: Database["public"]["Enums"]["user_role"]
           updated_at: string
+          phone: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -1096,6 +1100,7 @@ export type Database = {
           id: string
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          phone?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -1105,6 +1110,7 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
           updated_at?: string
+          phone?: string | null
         }
         Relationships: []
       }

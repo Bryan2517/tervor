@@ -9,7 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Building, Users, Crown, ShieldCheck, UserCheck, UserIcon, Plus, Key, LogOut, Clock, Upload, Mail, Eye, EyeOff, Shield } from "lucide-react";
+import { Building, Users, Crown, ShieldCheck, UserCheck, UserIcon, Plus, Key, LogOut, Clock, Upload, Mail, Eye, EyeOff, Shield, Phone } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -63,8 +63,8 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
   const [savingProfile, setSavingProfile] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [profile, setProfile] = useState<{ id: string; full_name: string; email: string; avatar_url?: string } | null>(null);
-  const [profileForm, setProfileForm] = useState<{ full_name: string }>({ full_name: "" });
+  const [profile, setProfile] = useState<{ id: string; full_name: string; email: string; avatar_url?: string; phone?: string | null } | null>(null);
+  const [profileForm, setProfileForm] = useState<{ full_name: string; phone: string }>({ full_name: "", phone: "" });
   const [passwordData, setPasswordData] = useState({ newPassword: "", confirmPassword: "" });
   const [clockingIn, setClockingIn] = useState(false);
   const { toast } = useToast();
@@ -90,12 +90,12 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
         if (!user) return;
         const { data } = await supabase
           .from("users")
-          .select("id, full_name, email, avatar_url")
+          .select("id, full_name, email, avatar_url, phone")
           .eq("id", user.id)
           .single();
         if (data) {
           setProfile(data);
-          setProfileForm({ full_name: data.full_name || "" });
+          setProfileForm({ full_name: data.full_name || "", phone: data.phone || "" });
         }
       } catch (e) {
         // Ignore
@@ -378,9 +378,13 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
     if (!profile) return;
     setSavingProfile(true);
     try {
-      const { error } = await supabase.from('users').update({ full_name: profileForm.full_name }).eq('id', profile.id);
+      const { error } = await supabase.from('users').update({ 
+        full_name: profileForm.full_name,
+        phone: profileForm.phone || null
+      }).eq('id', profile.id);
       if (error) throw error;
       toast({ title: 'Profile saved' });
+      setProfile({ ...profile, full_name: profileForm.full_name, phone: profileForm.phone || null });
     } catch (e: any) {
       toast({ title: 'Save failed', description: e?.message || 'Try again', variant: 'destructive' });
     } finally {
@@ -450,7 +454,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="full_name">Full Name</Label>
-                      <Input id="full_name" value={profileForm.full_name} onChange={(e)=>setProfileForm({ full_name: e.target.value })} placeholder="Enter your full name" />
+                      <Input id="full_name" value={profileForm.full_name} onChange={(e)=>setProfileForm({...profileForm, full_name: e.target.value })} placeholder="Enter your full name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -459,6 +463,19 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
                         <Input id="email" value={profile?.email} disabled className="flex-1" />
                       </div>
                       <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          id="phone" 
+                          value={profileForm.phone} 
+                          onChange={(e)=>setProfileForm({...profileForm, phone: e.target.value})} 
+                          placeholder="Enter phone number" 
+                          className="flex-1" 
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-end">
                       <Button onClick={handleSaveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save'}</Button>
@@ -595,6 +612,53 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
             </Dialog>
           </CardContent>
         </Card>
+
+        <AlertDialog open={clockInDialogOpen} onOpenChange={setClockInDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clock In</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-3">
+                <p>
+                  Do you want to clock in to <strong>{selectedOrgForClockIn?.name}</strong>? This will start tracking your time for this organization.
+                </p>
+                <div className="flex items-center justify-center gap-2 p-4 bg-muted rounded-lg">
+                  <Clock className="w-5 h-5 text-primary" />
+                  <span className="text-2xl font-mono font-bold text-foreground">
+                    {formatTime(currentTime)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  This is the time that will be recorded for your clock in
+                </p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel onClick={() => setSelectedOrgForClockIn(null)}>
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmClockIn} disabled={clockingIn}>
+                {clockingIn ? "Clocking In..." : "Clock In"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Log Out</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to log out?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={loggingOut}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleLogout} disabled={loggingOut}>
+                {loggingOut ? "Logging out..." : "Log Out"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     );
   }
@@ -638,7 +702,7 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="full_name">Full Name</Label>
-                      <Input id="full_name" value={profileForm.full_name} onChange={(e)=>setProfileForm({ full_name: e.target.value })} placeholder="Enter your full name" />
+                      <Input id="full_name" value={profileForm.full_name} onChange={(e)=>setProfileForm({...profileForm, full_name: e.target.value })} placeholder="Enter your full name" />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="email">Email</Label>
@@ -647,6 +711,19 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
                         <Input id="email" value={profile?.email} disabled className="flex-1" />
                       </div>
                       <p className="text-xs text-muted-foreground">Email cannot be changed</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="phone">Phone Number</Label>
+                      <div className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <Input 
+                          id="phone" 
+                          value={profileForm.phone} 
+                          onChange={(e)=>setProfileForm({...profileForm, phone: e.target.value})} 
+                          placeholder="Enter phone number" 
+                          className="flex-1" 
+                        />
+                      </div>
                     </div>
                     <div className="flex justify-end">
                       <Button onClick={handleSaveProfile} disabled={savingProfile}>{savingProfile ? 'Saving...' : 'Save'}</Button>

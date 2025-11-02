@@ -20,21 +20,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { ArrowLeft, Users, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Users, Plus, UserPlus, X, Edit2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 
 interface Team {
@@ -43,6 +33,12 @@ interface Team {
   description?: string;
   supervisor_id?: string;
   created_at: string;
+  created_by?: string;
+  created_by_user?: {
+    id: string;
+    email: string;
+    full_name?: string;
+  };
 }
 
 interface TeamMember {
@@ -52,6 +48,7 @@ interface TeamMember {
   users: {
     email: string;
     full_name?: string;
+    phone?: string | null;
   };
 }
 
@@ -61,6 +58,7 @@ interface OrgMember {
   users: {
     email: string;
     full_name?: string;
+    phone?: string | null;
   };
 }
 
@@ -71,12 +69,10 @@ export default function SupervisorTeams() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [employees, setEmployees] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [teamToDelete, setTeamToDelete] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [teamMemberCounts, setTeamMemberCounts] = useState<Record<string, number>>({});
 
@@ -116,7 +112,31 @@ export default function SupervisorTeams() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setTeams(teamsData || []);
+
+      // Fetch created_by user details for each team
+      if (teamsData && teamsData.length > 0) {
+        const createdByIds = teamsData
+          .filter((team: any) => team.created_by)
+          .map((team: any) => team.created_by);
+
+        if (createdByIds.length > 0) {
+          const { data: usersData } = await supabase
+            .from("users")
+            .select("id, email, full_name")
+            .in("id", createdByIds);
+
+          const teamsWithCreator = teamsData.map((team: any) => ({
+            ...team,
+            created_by_user: usersData?.find((u) => u.id === team.created_by),
+          }));
+
+          setTeams(teamsWithCreator);
+        } else {
+          setTeams(teamsData || []);
+        }
+      } else {
+        setTeams([]);
+      }
       
       // Fetch member counts for all teams
       if (teamsData && teamsData.length > 0) {
@@ -152,7 +172,7 @@ export default function SupervisorTeams() {
 
       const { data, error } = await supabase
         .from("organization_members")
-        .select("user_id, role, users(email, full_name)")
+        .select("user_id, role, users(email, full_name, phone)")
         .eq("organization_id", organization.id)
         .eq("role", "employee");
 
@@ -178,7 +198,7 @@ export default function SupervisorTeams() {
         const userIds = membersData.map((m: any) => m.user_id);
         const { data: usersData } = await supabase
           .from("users")
-          .select("id, email, full_name")
+          .select("id, email, full_name, phone")
           .in("id", userIds);
 
         // Map user data to team members
@@ -200,10 +220,9 @@ export default function SupervisorTeams() {
     }
   };
 
-  const handleCreateTeam = async () => {
+  const handleUpdateTeam = async () => {
     try {
-      if (!organization || !currentUserId) return;
-      if (!formData.name.trim()) {
+      if (!selectedTeam || !formData.name.trim()) {
         toast({
           title: "Error",
           description: "Team name is required",
@@ -212,48 +231,39 @@ export default function SupervisorTeams() {
         return;
       }
 
-      const teamData: any = {
-        organization_id: organization.id,
-        name: formData.name.trim(),
-        description: formData.description.trim() || null,
-        supervisor_id: currentUserId,
-      };
-
       // @ts-ignore - teams table will be available after migration
-      const { data, error } = await (supabase as any)
+      const { data: updatedData, error } = await (supabase as any)
         .from("teams")
-        .insert(teamData)
-        .select()
-        .single();
+        .update({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+        })
+        .eq("id", selectedTeam.id)
+        .select();
 
       if (error) throw error;
 
-      // Add supervisor to team_members
-      // @ts-ignore - team_members table will be available after migration
-      await (supabase as any).from("team_members").insert({
-        team_id: data.id,
-        user_id: currentUserId,
-      });
+      if (!updatedData || updatedData.length === 0) {
+        toast({
+          title: "Error",
+          description: "Failed to update team - no changes were made",
+          variant: "destructive",
+        });
+        return;
+      }
 
       toast({
         title: "Success",
-        description: "Team created successfully",
+        description: "Team updated successfully",
       });
 
-      setCreateDialogOpen(false);
+      setEditTeamDialogOpen(false);
       setFormData({ name: "", description: "" });
-      // Add the new team's member count (1 for the supervisor)
-      if (data?.id) {
-        setTeamMemberCounts(prev => ({
-          ...prev,
-          [data.id]: 1
-        }));
-      }
       fetchTeams();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Failed to create team",
+        description: error.message || "Failed to update team",
         variant: "destructive",
       });
     }
@@ -345,36 +355,6 @@ export default function SupervisorTeams() {
     }
   };
 
-  const handleDeleteTeam = async () => {
-    try {
-      if (!teamToDelete) return;
-
-      // @ts-ignore - teams table will be available after migration
-      const { error } = await (supabase as any)
-        .from("teams")
-        .delete()
-        .eq("id", teamToDelete);
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Team deleted successfully",
-      });
-
-      setDeleteDialogOpen(false);
-      setTeamToDelete(null);
-      setSelectedTeam(null);
-      fetchTeams();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete team",
-        variant: "destructive",
-      });
-    }
-  };
-
   const handleViewTeam = (team: Team) => {
     setSelectedTeam(team);
     fetchTeamMembers(team.id);
@@ -420,10 +400,6 @@ export default function SupervisorTeams() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => setCreateDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Create Team
-            </Button>
           </div>
         </div>
       </header>
@@ -438,12 +414,8 @@ export default function SupervisorTeams() {
                   <Users className="w-16 h-16 mx-auto mb-4 text-muted-foreground opacity-50" />
                   <h3 className="text-lg font-semibold mb-2">No Teams Yet</h3>
                   <p className="text-muted-foreground mb-4">
-                    Create your first team to organize your employees
+                    You haven't been assigned to any teams yet
                   </p>
-                  <Button onClick={() => setCreateDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Team
-                  </Button>
                 </CardContent>
               </Card>
             ) : (
@@ -470,19 +442,27 @@ export default function SupervisorTeams() {
                         size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
-                          setTeamToDelete(team.id);
-                          setDeleteDialogOpen(true);
+                          setSelectedTeam(team);
+                          setFormData({ name: team.name, description: team.description || "" });
+                          setEditTeamDialogOpen(true);
                         }}
                       >
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                        <Edit2 className="w-4 h-4 text-primary" />
                       </Button>
                     </div>
                   </CardHeader>
                   <CardContent>
                     <div className="flex items-center justify-between">
-                      <Badge variant="outline">
-                        {teamMemberCounts[team.id] || 0} members
-                      </Badge>
+                      <div className="flex items-center gap-4">
+                        <Badge variant="outline">
+                          {teamMemberCounts[team.id] || 0} members
+                        </Badge>
+                        {team.created_by_user && (
+                          <div className="text-sm text-muted-foreground">
+                            Created by: <span className="font-medium">{team.created_by_user.full_name || team.created_by_user.email}</span>
+                          </div>
+                        )}
+                      </div>
                       <Button
                         variant="outline"
                         size="sm"
@@ -551,6 +531,11 @@ export default function SupervisorTeams() {
                               <p className="text-xs text-muted-foreground">
                                 {member.users.email}
                               </p>
+                              {member.users.phone && (
+                                <p className="text-xs text-muted-foreground">
+                                  {member.users.phone}
+                                </p>
+                              )}
                             </div>
                           </div>
                           {member.user_id !== currentUserId && (
@@ -581,49 +566,6 @@ export default function SupervisorTeams() {
           </div>
         </div>
       </div>
-
-      {/* Create Team Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Team</DialogTitle>
-            <DialogDescription>
-              Create a team and invite employees to join it
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="team-name">
-                Team Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="team-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="e.g., Development Team"
-              />
-            </div>
-            <div>
-              <Label htmlFor="team-description">Description</Label>
-              <Textarea
-                id="team-description"
-                value={formData.description}
-                onChange={(e) =>
-                  setFormData({ ...formData, description: e.target.value })
-                }
-                placeholder="Describe the team's purpose and responsibilities"
-                rows={3}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleCreateTeam}>Create Team</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Add Member Dialog */}
       <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
@@ -672,24 +614,48 @@ export default function SupervisorTeams() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Team Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Team</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this team? This action cannot be undone.
-              All team members will be removed from the team.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setTeamToDelete(null)}>
+      {/* Edit Team Dialog */}
+      <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Team</DialogTitle>
+            <DialogDescription>
+              Update team details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-team-name">
+                Team Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-team-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Development Team"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-team-description">Description</Label>
+              <Textarea
+                id="edit-team-description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Describe the team's purpose and responsibilities"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
               Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteTeam}>Delete</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+            <Button onClick={handleUpdateTeam}>Save Changes</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

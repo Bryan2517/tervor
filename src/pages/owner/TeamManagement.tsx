@@ -32,6 +32,7 @@ interface TeamMember {
     full_name: string;
     email: string;
     avatar_url?: string;
+    phone?: string | null;
   };
 }
 
@@ -69,7 +70,7 @@ export function TeamManagement() {
         .select(`
           user_id,
           role,
-          user:users(id, full_name, email, avatar_url)
+          user:users(id, full_name, email, avatar_url, phone)
         `)
         .eq("organization_id", organization.id)
         .order("role");
@@ -122,6 +123,10 @@ export function TeamManagement() {
 
   const handleRemoveMember = async (userId: string) => {
     if (!organization) return;
+    if (userId === currentUserId) {
+      toast({ title: "Not allowed", description: "You can't remove yourself from the organization.", variant: "destructive" });
+      return;
+    }
     
     setRemovingUserId(userId);
     try {
@@ -277,6 +282,9 @@ export function TeamManagement() {
                     <div>
                       <p className="font-medium">{member.user.full_name}</p>
                       <p className="text-sm text-muted-foreground">{member.user.email}</p>
+                      {member.user.phone && (
+                        <p className="text-sm text-muted-foreground">{member.user.phone}</p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
@@ -301,40 +309,42 @@ export function TeamManagement() {
                         </SelectContent>
                       </Select>
                       
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                            disabled={removingUserId === member.user_id}
-                          >
-                            <UserMinus className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
-                              <br /><br />
-                              This action cannot be undone. They will lose access to all projects and data.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel disabled={removingUserId === member.user_id}>
-                              Cancel
-                            </AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleRemoveMember(member.user_id)}
+                      {member.user_id !== currentUserId && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
                               disabled={removingUserId === member.user_id}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                              <UserMinus className="w-4 h-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
+                                <br /><br />
+                                This action cannot be undone. They will lose access to all projects and data.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel disabled={removingUserId === member.user_id}>
+                                Cancel
+                              </AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={() => handleRemoveMember(member.user_id)}
+                                disabled={removingUserId === member.user_id}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                     </>
                   </div>
                 </div>

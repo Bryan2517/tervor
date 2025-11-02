@@ -48,6 +48,7 @@ interface OrgStats {
   activeProjects: number;
   totalTasks: number;
   completionRate: number;
+  totalTeams: number;
 }
 
 export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDashboardProps) {
@@ -58,6 +59,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
     activeProjects: 0,
     totalTasks: 0,
     completionRate: 0,
+    totalTeams: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +78,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
       const today = new Date().toISOString().split('T')[0];
       
       // Fetch organization statistics
-      const [attendanceData, membersData, projectsData, tasksData] = await Promise.all([
+      const [attendanceData, membersData, projectsData, tasksData, teamsData] = await Promise.all([
         supabase
           .from('attendance_checkins')
           .select('user_id', { count: 'exact', head: false })
@@ -93,13 +95,19 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
         supabase
           .from('tasks')
           .select('status, project:projects!inner(organization_id)')
-          .eq('project.organization_id', organization.id)
+          .eq('project.organization_id', organization.id),
+        // @ts-ignore - teams table will be available after migration
+        (supabase as any)
+          .from('teams')
+          .select('id')
+          .eq('organization_id', organization.id)
       ]);
 
       const attendanceToday = attendanceData.data?.length || 0;
       const totalMembers = membersData.data?.length || 0;
       const activeProjects = projectsData.data?.length || 0;
       const totalTasks = tasksData.data?.length || 0;
+      const totalTeams = teamsData.data?.length || 0;
       const completedTasks = tasksData.data?.filter(task => task.status === 'done').length || 0;
       const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
 
@@ -109,6 +117,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
         activeProjects,
         totalTasks,
         completionRate,
+        totalTeams,
       });
     } catch (error) {
       console.error('Error fetching organization stats:', error);
@@ -225,7 +234,7 @@ export function OwnerDashboard({ organization, onLogout, onClockOut }: OwnerDash
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Team Management</p>
-                  <p className="text-2xl font-bold">{stats.totalMembers}</p>
+                  <p className="text-2xl font-bold">{stats.totalTeams}</p>
                 </div>
                 <div className="w-12 h-12 bg-blue-500/10 rounded-lg flex items-center justify-center">
                   <UsersRound className="w-6 h-6 text-blue-500" />

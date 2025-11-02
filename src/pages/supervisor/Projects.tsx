@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, FolderOpen, Users, Calendar, Target } from "lucide-react";
+import { ArrowLeft, FolderOpen, Users, Calendar, Target, GitBranch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
@@ -18,6 +18,7 @@ interface Project {
   completedTasks?: number;
   myAssignments?: number;
   progressPercentage?: number;
+  current_phase?: string;
 }
 
 export default function SupervisorProjects() {
@@ -43,7 +44,7 @@ export default function SupervisorProjects() {
       // Fetch all projects in the organization
       const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
-        .select("id, name, description, created_at, organization_id")
+        .select("id, name, description, created_at, organization_id, current_phase")
         .eq("organization_id", organization.id)
         .order("created_at", { ascending: false });
 
@@ -143,6 +144,14 @@ export default function SupervisorProjects() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Project Phase */}
+                  {project.current_phase && (
+                    <div className="flex items-center gap-2 pb-3 border-b">
+                      <GitBranch className="w-5 h-5 text-primary" />
+                      <span className="text-base font-semibold text-primary">{project.current_phase}</span>
+                    </div>
+                  )}
+                  
                   {/* Progress */}
                   <div>
                     <div className="flex justify-between text-sm mb-2">

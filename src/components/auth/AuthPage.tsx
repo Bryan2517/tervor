@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/enhanced-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles, Users, Target, Award, Eye, EyeOff } from "lucide-react";
 import { z } from "zod";
@@ -39,6 +40,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [countryCode, setCountryCode] = useState("+60");
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -66,6 +68,14 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
 
     return () => subscription.unsubscribe();
   }, [onAuthSuccess]);
+
+  useEffect(() => {
+    // Reset phone fields when switching between sign-in and sign-up
+    if (!isSignUp) {
+      setPhone("");
+      setCountryCode("+60");
+    }
+  }, [isSignUp]);
 
   const handleGoogleSignIn = async () => {
     try {
@@ -116,7 +126,7 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
             emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: validation.fullName,
-              phone: phone.trim(),
+              phone: `${countryCode}${phone.trim()}`,
             }
           }
         });
@@ -275,14 +285,26 @@ export function AuthPage({ onAuthSuccess }: AuthPageProps) {
                   {isSignUp && (
                     <div className="space-y-2">
                       <Label htmlFor="phone">Phone Number</Label>
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        required={isSignUp}
-                      />
+                      <div className="flex gap-2">
+                        <Select value={countryCode} onValueChange={setCountryCode}>
+                          <SelectTrigger className="w-[140px]">
+                            <SelectValue placeholder="Code" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="+60">MY +60</SelectItem>
+                            <SelectItem value="+65">SG +65</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          id="phone"
+                          type="tel"
+                          placeholder="123456789"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          required={isSignUp}
+                          className="flex-1"
+                        />
+                      </div>
                     </div>
                   )}
                   

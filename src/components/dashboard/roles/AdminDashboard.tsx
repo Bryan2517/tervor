@@ -46,7 +46,7 @@ interface AdminStats {
   attendanceToday: number;
   totalMembers: number;
   managedProjects: number;
-  activeTasks: number;
+  totalTeams: number;
   teamProductivity: number;
   totalPoints: number;
 }
@@ -57,7 +57,7 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
     attendanceToday: 0,
     totalMembers: 0,
     managedProjects: 0,
-    activeTasks: 0,
+    totalTeams: 0,
     teamProductivity: 0,
     totalPoints: 0,
   });
@@ -78,7 +78,7 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
       const today = new Date().toISOString().split('T')[0];
       
       // Fetch admin-specific statistics
-      const [attendanceData, membersData, projectsData, tasksData, completedTasksData] = await Promise.all([
+      const [attendanceData, membersData, projectsData, teamsData, completedTasksData] = await Promise.all([
         supabase
           .from('attendance_checkins')
           .select('user_id', { count: 'exact', head: false })
@@ -92,11 +92,11 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
           .from('projects')
           .select('id')
           .eq('organization_id', organization.id),
-        supabase
-          .from('tasks')
-          .select('status, project:projects!inner(organization_id)')
-          .eq('project.organization_id', organization.id)
-          .neq('status', 'done'),
+        // @ts-ignore - teams table will be available after migration
+        (supabase as any)
+          .from('teams')
+          .select('id')
+          .eq('organization_id', organization.id),
         supabase
           .from('tasks')
           .select('status, priority, project:projects!inner(organization_id)')
@@ -107,7 +107,7 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
       const attendanceToday = attendanceData.data?.length || 0;
       const totalMembers = membersData.data?.length || 0;
       const managedProjects = projectsData.data?.length || 0;
-      const activeTasks = tasksData.data?.length || 0;
+      const totalTeams = teamsData.data?.length || 0;
       
       // Calculate total points and productivity
       const completedTasks = completedTasksData.data || [];
@@ -116,14 +116,14 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
         return sum + points;
       }, 0);
       
-      const totalTasks = activeTasks + completedTasks.length;
+      const totalTasks = completedTasks.length;
       const teamProductivity = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
       setStats({
         attendanceToday,
         totalMembers,
         managedProjects,
-        activeTasks,
+        totalTeams,
         teamProductivity,
         totalPoints,
       });
@@ -236,16 +236,16 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
             </Card>
           </Link>
 
-          <Link to="/admin/task-assignment">
+          <Link to="/admin/teams">
             <Card variant="interactive" className="cursor-pointer hover:shadow-lg transition-shadow">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-muted-foreground">Active Tasks</p>
-                    <p className="text-2xl font-bold">{stats.activeTasks}</p>
+                    <p className="text-sm font-medium text-muted-foreground">Total Teams</p>
+                    <p className="text-2xl font-bold">{stats.totalTeams}</p>
                   </div>
                   <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                    <Target className="w-6 h-6 text-warning" />
+                    <UsersRound className="w-6 h-6 text-warning" />
                   </div>
                 </div>
               </CardContent>
@@ -315,12 +315,7 @@ export function AdminDashboard({ organization, onLogout, onClockOut }: AdminDash
                       <span>Create Assignment</span>
                     </Button>
                   </Link>
-                  <Link to="/admin/quality-review">
-                    <Button variant="outline" className="h-20 flex-col gap-2 w-full">
-                      <CheckCircle2 className="w-6 h-6" />
-                      <span>Quality Review</span>
-                    </Button>
-                  </Link>
+
                   <Link to="/admin/time-logging">
                     <Button variant="outline" className="h-20 flex-col gap-2 w-full">
                       <Clock className="w-6 h-6" />

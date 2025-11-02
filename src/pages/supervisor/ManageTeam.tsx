@@ -19,6 +19,7 @@ interface TeamMember {
     full_name: string;
     email: string;
     avatar_url?: string;
+    phone?: string | null;
   };
 }
 
@@ -49,7 +50,8 @@ export default function SupervisorManageTeam() {
             id,
             full_name,
             email,
-            avatar_url
+            avatar_url,
+            phone
           )
         `)
         .eq("organization_id", organization.id)
@@ -139,6 +141,9 @@ export default function SupervisorManageTeam() {
                     <div>
                       <p className="font-semibold">{member.users.full_name}</p>
                       <p className="text-sm text-muted-foreground">{member.users.email}</p>
+                      {member.users.phone && (
+                        <p className="text-sm text-muted-foreground">{member.users.phone}</p>
+                      )}
                     </div>
                   </div>
                   <Badge variant="outline" className="flex items-center gap-2">

@@ -6,7 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowLeft, Building2, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Building2, CheckCircle2, GitBranch } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
@@ -19,7 +20,17 @@ export default function CreateProject() {
     name: "",
     description: "",
     due_date: "",
+    current_phase: "",
   });
+  const defaultPhases = [
+    "Planning Phase",
+    "Analysis Phase",
+    "Design Phase",
+    "Development Phase",
+    "Testing Phase",
+    "Deployment Phase",
+    "Maintenance Phase"
+  ];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,6 +65,7 @@ export default function CreateProject() {
           name: formData.name,
           description: formData.description,
           due_date: formData.due_date || null,
+          current_phase: formData.current_phase || null,
           organization_id: organization.id,
           owner_id: user.id,
         })
@@ -147,6 +159,30 @@ export default function CreateProject() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Provide details about the project goals, scope, and objectives
+                </p>
+              </div>
+
+              {/* Project Phase */}
+              <div className="space-y-2">
+                <Label htmlFor="current_phase">Project Phase</Label>
+                <Select
+                  value={formData.current_phase}
+                  onValueChange={(value) => setFormData({ ...formData, current_phase: value })}
+                  disabled={loading}
+                >
+                  <SelectTrigger id="current_phase">
+                    <SelectValue placeholder="Select a project phase (optional)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {defaultPhases.map((phase) => (
+                      <SelectItem key={phase} value={phase}>
+                        {phase}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Select the initial phase of the project (optional)
                 </p>
               </div>
 

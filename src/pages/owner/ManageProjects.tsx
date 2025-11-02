@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Plus, FolderOpen, Users, Calendar, Coins } from "lucide-react";
+import { ArrowLeft, Plus, FolderOpen, Users, Calendar, Coins, GitBranch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,6 +23,7 @@ interface Project {
   completedTasks?: number;
   overdueTasks?: number;
   progressPercentage?: number;
+  current_phase?: string;
 }
 
 export function ManageProjects() {
@@ -38,7 +39,17 @@ export function ManageProjects() {
     description: "",
     assigned_admin_id: "",
     completion_points: 0,
+    current_phase: "",
   });
+  const defaultPhases = [
+    "Planning Phase",
+    "Analysis Phase",
+    "Design Phase",
+    "Development Phase",
+    "Testing Phase",
+    "Deployment Phase",
+    "Maintenance Phase"
+  ];
 
   useEffect(() => {
     if (organization) {
@@ -147,6 +158,7 @@ export function ManageProjects() {
           owner_id: user.id,
           assigned_admin_id: newProject.assigned_admin_id || null,
           completion_points: newProject.completion_points || 0,
+          current_phase: newProject.current_phase || null,
         });
 
       if (error) throw error;
@@ -157,7 +169,7 @@ export function ManageProjects() {
       });
 
       setDialogOpen(false);
-      setNewProject({ name: "", description: "", assigned_admin_id: "", completion_points: 0 });
+      setNewProject({ name: "", description: "", assigned_admin_id: "", completion_points: 0, current_phase: "" });
       fetchProjects();
     } catch (error) {
       console.error("Error creating project:", error);
@@ -228,6 +240,24 @@ export function ManageProjects() {
                       placeholder="Enter project description"
                       rows={3}
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="project-phase">Project Phase (Optional)</Label>
+                    <Select
+                      value={newProject.current_phase}
+                      onValueChange={(value) => setNewProject({ ...newProject, current_phase: value })}
+                    >
+                      <SelectTrigger id="project-phase">
+                        <SelectValue placeholder="Select a project phase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {defaultPhases.map((phase) => (
+                          <SelectItem key={phase} value={phase}>
+                            {phase}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="assigned-admin">Assign to Admin (Optional)</Label>
@@ -315,6 +345,14 @@ export function ManageProjects() {
                         {new Date(project.created_at).toLocaleDateString()}
                       </div>
                     </div>
+                    
+                    {/* Project Phase */}
+                    {project.current_phase && (
+                      <div className="flex items-center gap-2 mt-3 pb-2 border-b">
+                        <GitBranch className="w-5 h-5 text-primary" />
+                        <span className="text-base font-semibold text-primary">{project.current_phase}</span>
+                      </div>
+                    )}
                     
                     {/* Progress Bar */}
                     <div className="space-y-2 my-4">

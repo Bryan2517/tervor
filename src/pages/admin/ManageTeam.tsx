@@ -31,6 +31,7 @@ interface TeamMember {
     full_name: string;
     email: string;
     avatar_url: string | null;
+    phone?: string | null;
   };
 }
 
@@ -66,7 +67,8 @@ export function ManageTeam() {
           users!inner(
             full_name,
             email,
-            avatar_url
+            avatar_url,
+            phone
           )
         `)
         .eq("organization_id", organization.id)
@@ -294,6 +296,9 @@ export function ManageTeam() {
                     <div>
                       <p className="font-medium">{member.users.full_name}</p>
                       <p className="text-sm text-muted-foreground">{member.users.email}</p>
+                      {member.users.phone && (
+                        <p className="text-sm text-muted-foreground">{member.users.phone}</p>
+                      )}
                     </div>
                   </div>
 

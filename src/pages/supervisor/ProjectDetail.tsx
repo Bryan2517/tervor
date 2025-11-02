@@ -29,7 +29,8 @@ import {
   Users,
   BarChart3,
   Trash2,
-  CalendarClock
+  CalendarClock,
+  GitBranch
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -43,6 +44,7 @@ interface Project {
   updated_at: string;
   organization_id: string;
   owner_id: string;
+  current_phase?: string;
 }
 
 interface Task {
@@ -603,7 +605,9 @@ export function ProjectDetail() {
       <div className="container mx-auto px-4 py-6">
         {/* Project Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          <div className="lg:col-span-2">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Project Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Project Information</CardTitle>
@@ -630,8 +634,31 @@ export function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Project Phase */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GitBranch className="w-5 h-5" />
+                  Current Phase
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {project.current_phase ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 pb-2 border-b">
+                      <GitBranch className="w-5 h-5 text-primary" />
+                      <span className="text-base font-semibold text-primary">{project.current_phase}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No phase set</p>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
+          {/* Right Column */}
           <div>
             <Card>
               <CardHeader>

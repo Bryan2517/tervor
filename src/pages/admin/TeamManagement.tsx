@@ -34,7 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
-import { ArrowLeft, Users, Plus, Trash2, UserPlus, X } from "lucide-react";
+import { ArrowLeft, Users, Plus, Trash2, UserPlus, X, Edit2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface Team {
@@ -43,7 +43,14 @@ interface Team {
   description?: string;
   supervisor_id?: string;
   created_at: string;
+  created_by?: string;
   supervisor?: {
+    id: string;
+    email: string;
+    full_name?: string;
+    phone?: string | null;
+  };
+  created_by_user?: {
     id: string;
     email: string;
     full_name?: string;
@@ -57,6 +64,7 @@ interface TeamMember {
   users: {
     email: string;
     full_name?: string;
+    phone?: string | null;
   };
 }
 
@@ -66,6 +74,7 @@ interface OrgMember {
   users: {
     email: string;
     full_name?: string;
+    phone?: string | null;
   };
 }
 
@@ -77,6 +86,7 @@ export function TeamManagement() {
   const [employees, setEmployees] = useState<OrgMember[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -111,25 +121,32 @@ export function TeamManagement() {
 
       if (error) throw error;
 
-      // Fetch supervisor details for each team
+      // Fetch supervisor and creator details for each team
       if (teamsData && teamsData.length > 0) {
         const supervisorIds = teamsData
           .filter((team: any) => team.supervisor_id)
           .map((team: any) => team.supervisor_id);
+        
+        const createdByIds = teamsData
+          .filter((team: any) => team.created_by)
+          .map((team: any) => team.created_by);
 
-        if (supervisorIds.length > 0) {
-          const { data: supervisorsData } = await supabase
+        const allUserIds = [...new Set([...supervisorIds, ...createdByIds])];
+
+        if (allUserIds.length > 0) {
+          const { data: usersData } = await supabase
             .from("users")
-            .select("id, email, full_name")
-            .in("id", supervisorIds);
+            .select("id, email, full_name, phone")
+            .in("id", allUserIds);
 
-          // Map supervisor data to teams
-          const teamsWithSupervisors = teamsData.map((team: any) => ({
+          // Map supervisor and creator data to teams
+          const teamsWithUsers = teamsData.map((team: any) => ({
             ...team,
-            supervisor: supervisorsData?.find((s) => s.id === team.supervisor_id),
+            supervisor: usersData?.find((s) => s.id === team.supervisor_id),
+            created_by_user: usersData?.find((u) => u.id === team.created_by),
           }));
 
-          setTeams(teamsWithSupervisors);
+          setTeams(teamsWithUsers);
         } else {
           setTeams(teamsData);
         }
@@ -153,7 +170,7 @@ export function TeamManagement() {
 
       const { data, error } = await supabase
         .from("organization_members")
-        .select("user_id, role, users(email, full_name)")
+        .select("user_id, role, users(email, full_name, phone)")
         .eq("organization_id", organization.id)
         .in("role", ["supervisor", "employee"]);
 
@@ -182,7 +199,7 @@ export function TeamManagement() {
         const userIds = membersData.map((m: any) => m.user_id);
         const { data: usersData } = await supabase
           .from("users")
-          .select("id, email, full_name")
+          .select("id, email, full_name, phone")
           .in("id", userIds);
 
         // Map user data to team members
@@ -216,10 +233,14 @@ export function TeamManagement() {
         return;
       }
 
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const teamData: any = {
         organization_id: organization.id,
         name: formData.name.trim(),
         description: formData.description.trim() || null,
+        created_by: user.id,
       };
 
       if (formData.supervisor_id && formData.supervisor_id !== "unassigned") {
@@ -256,6 +277,45 @@ export function TeamManagement() {
       toast({
         title: "Error",
         description: error.message || "Failed to create team",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateTeam = async () => {
+    try {
+      if (!selectedTeam || !formData.name.trim()) {
+        toast({
+          title: "Error",
+          description: "Team name is required",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // @ts-ignore - teams table will be available after migration
+      const { error } = await (supabase as any)
+        .from("teams")
+        .update({
+          name: formData.name.trim(),
+          description: formData.description.trim() || null,
+        })
+        .eq("id", selectedTeam.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Team updated successfully",
+      });
+
+      setEditTeamDialogOpen(false);
+      setFormData({ name: "", description: "", supervisor_id: "" });
+      fetchTeams();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update team",
         variant: "destructive",
       });
     }
@@ -455,17 +515,31 @@ export function TeamManagement() {
                           {team.description || "No description provided"}
                         </CardDescription>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setTeamToDelete(team.id);
-                          setDeleteDialogOpen(true);
-                        }}
-                      >
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTeam(team);
+                            setFormData({ name: team.name, description: team.description || "", supervisor_id: "" });
+                            setEditTeamDialogOpen(true);
+                          }}
+                        >
+                          <Edit2 className="w-4 h-4 text-primary" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTeamToDelete(team.id);
+                            setDeleteDialogOpen(true);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -477,6 +551,14 @@ export function TeamManagement() {
                             {team.supervisor?.full_name || team.supervisor?.email || "Unassigned"}
                           </Badge>
                         </div>
+                        {team.created_by_user && (
+                          <div>
+                            <span className="text-muted-foreground">Created by: </span>
+                            <Badge variant="secondary">
+                              {team.created_by_user.full_name || team.created_by_user.email}
+                            </Badge>
+                          </div>
+                        )}
                       </div>
                       <Button
                         variant="outline"
@@ -546,6 +628,11 @@ export function TeamManagement() {
                               <p className="text-xs text-muted-foreground">
                                 {member.users.email}
                               </p>
+                              {member.users.phone && (
+                                <p className="text-xs text-muted-foreground">
+                                  {member.users.phone}
+                                </p>
+                              )}
                             </div>
                           </div>
                           <Button
@@ -677,6 +764,49 @@ export function TeamManagement() {
               Cancel
             </Button>
             <Button onClick={handleAddMember}>Add Member</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Team Dialog */}
+      <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Team</DialogTitle>
+            <DialogDescription>
+              Update team details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="edit-team-name">
+                Team Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="edit-team-name"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="e.g., Development Team"
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-team-description">Description</Label>
+              <Textarea
+                id="edit-team-description"
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Describe the team's purpose and responsibilities"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateTeam}>Save Changes</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

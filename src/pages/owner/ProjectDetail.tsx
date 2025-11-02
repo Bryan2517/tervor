@@ -27,7 +27,8 @@ import {
   BarChart3,
   Trash2,
   Pencil,
-  CalendarClock
+  CalendarClock,
+  GitBranch
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,6 +47,7 @@ interface Project {
   updated_at: string;
   organization_id: string;
   owner_id: string;
+  current_phase?: string;
 }
 
 interface Task {
@@ -139,6 +141,26 @@ export function ProjectDetail() {
     description: "",
     due_date: "",
   });
+  const [phaseDialogOpen, setPhaseDialogOpen] = useState(false);
+  const [newPhaseName, setNewPhaseName] = useState("");
+  const defaultPhases = [
+    "Planning Phase",
+    "Analysis Phase",
+    "Design Phase",
+    "Development Phase",
+    "Testing Phase",
+    "Deployment Phase",
+    "Maintenance Phase"
+  ];
+
+  // Create a list of available phases that includes the current project phase if it's not in default phases
+  const availablePhases = useMemo(() => {
+    const phases = [...defaultPhases];
+    if (project?.current_phase && !phases.includes(project.current_phase)) {
+      phases.push(project.current_phase);
+    }
+    return phases;
+  }, [project?.current_phase]);
 
   const filteredTasks = useMemo(() => {
     let list = tasks;
@@ -633,6 +655,48 @@ export function ProjectDetail() {
     }
   };
 
+  const handleUpdatePhase = async (phase: string) => {
+    if (!project) return;
+
+    try {
+      const { error } = await supabase
+        .from("projects")
+        .update({ current_phase: phase })
+        .eq("id", project.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Project phase updated successfully",
+      });
+
+      fetchProjectDetails();
+    } catch (error) {
+      console.error("Error updating phase:", error);
+      toast({
+        title: "Error",
+        description: "Failed to update phase",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreatePhase = async () => {
+    if (!newPhaseName.trim()) {
+      toast({
+        title: "Error",
+        description: "Phase name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPhaseDialogOpen(false);
+    setNewPhaseName("");
+    handleUpdatePhase(newPhaseName.trim());
+  };
+
   const handleOpenEditDialog = () => {
     if (project) {
       setEditProjectData({
@@ -782,8 +846,9 @@ export function ProjectDetail() {
       <div className="container mx-auto px-4 py-6">
         {/* Project Overview */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Project Info */}
-          <div className="lg:col-span-2">
+          {/* Left Column */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Project Info */}
             <Card>
               <CardHeader>
                 <CardTitle>Project Information</CardTitle>
@@ -810,11 +875,69 @@ export function ProjectDetail() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Project Phase Card */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <GitBranch className="w-5 h-5" />
+                  Project Phase
+                </CardTitle>
+                <CardDescription>
+                  Track the current phase of the project
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="current-phase">Current Phase</Label>
+                    <Select
+                      value={project.current_phase || ""}
+                      onValueChange={handleUpdatePhase}
+                    >
+                      <SelectTrigger id="current-phase">
+                        <SelectValue placeholder="Select or add a phase" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availablePhases.map((phase) => (
+                          <SelectItem key={phase} value={phase}>
+                            {phase}
+                          </SelectItem>
+                        ))}
+                        {(organization?.role === "owner" || organization?.role === "admin") && (
+                          <>
+                            <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground bg-muted/50">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="w-full justify-start h-8"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setPhaseDialogOpen(true);
+                                }}
+                              >
+                                <Plus className="w-3 h-3 mr-2" />
+                                Add Custom Phase
+                              </Button>
+                            </div>
+                          </>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    {project.current_phase && (
+                      <p className="text-xs text-muted-foreground">
+                        Project is currently in: <span className="font-medium text-primary">{project.current_phase}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Progress Overview */}
+          {/* Right Column - Progress Overview */}
           <div>
-            <Card>
+            <Card className="h-full">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5" />
@@ -1429,6 +1552,35 @@ export function ProjectDetail() {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* Dialog for creating custom phase */}
+      <Dialog open={phaseDialogOpen} onOpenChange={setPhaseDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Custom Phase</DialogTitle>
+            <DialogDescription>
+              Create a custom phase for this project
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="phase-name">Phase Name</Label>
+            <Input
+              id="phase-name"
+              value={newPhaseName}
+              onChange={(e) => setNewPhaseName(e.target.value)}
+              placeholder="e.g., Research Phase"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPhaseDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreatePhase}>
+              Add Phase
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

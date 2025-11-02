@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, FolderOpen, Calendar } from "lucide-react";
+import { ArrowLeft, FolderOpen, Calendar, GitBranch } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
 
@@ -18,6 +18,7 @@ interface Project {
   completedTasks?: number;
   overdueTasks?: number;
   progressPercentage?: number;
+  current_phase?: string;
   tasks?: {
     status: string;
     due_date?: string;
@@ -49,6 +50,7 @@ export function ProgressTracking() {
           description,
           created_at,
           organization_id,
+          current_phase,
           tasks(
             status,
             due_date
@@ -157,6 +159,14 @@ export function ProgressTracking() {
                         {new Date(project.created_at).toLocaleDateString()}
                       </div>
                     </div>
+                    
+                    {/* Project Phase */}
+                    {project.current_phase && (
+                      <div className="flex items-center gap-2 mt-3 pb-2 border-b">
+                        <GitBranch className="w-5 h-5 text-primary" />
+                        <span className="text-base font-semibold text-primary">{project.current_phase}</span>
+                      </div>
+                    )}
                     
                     {/* Progress Bar */}
                     <div className="space-y-2 my-4">

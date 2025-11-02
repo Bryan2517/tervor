@@ -24,7 +24,8 @@ import {
   BarChart3,
   Play,
   Pause,
-  CalendarClock
+  CalendarClock,
+  GitBranch
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/contexts/OrganizationContext";
@@ -38,6 +39,7 @@ interface Project {
   updated_at: string;
   organization_id: string;
   owner_id: string;
+  current_phase?: string;
 }
 
 interface Task {
@@ -565,6 +567,28 @@ export function ProjectDetail() {
                 <div className="text-2xl font-bold text-red-600">{stats.overdueTasks}</div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Project Phase */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <GitBranch className="w-5 h-5" />
+              Current Phase
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {project.current_phase ? (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 pb-2 border-b">
+                  <GitBranch className="w-5 h-5 text-primary" />
+                  <span className="text-base font-semibold text-primary">{project.current_phase}</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No phase set</p>
+            )}
           </CardContent>
         </Card>
 
