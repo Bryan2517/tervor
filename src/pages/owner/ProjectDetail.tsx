@@ -228,12 +228,32 @@ export function ProjectDetail() {
 
   const fetchProjectDetails = async () => {
     try {
-      // Fetch project details
-      const { data: projectData, error: projectError } = await supabase
+      // Fetch project details by name first
+      let projectData;
+      let projectError;
+      
+      const { data, error } = await supabase
         .from("projects")
         .select("*")
         .eq("name", projectName)
         .single();
+      
+      projectData = data;
+      projectError = error;
+
+      // If fetching by name fails and we have a project with ID, try fetching by ID as fallback
+      if (projectError && project?.id) {
+        const { data: dataById, error: errorById } = await supabase
+          .from("projects")
+          .select("*")
+          .eq("id", project.id)
+          .single();
+        
+        if (!errorById && dataById) {
+          projectData = dataById;
+          projectError = null;
+        }
+      }
 
       if (projectError) throw projectError;
       setProject(projectData);
@@ -644,7 +664,16 @@ export function ProjectDetail() {
       });
 
       setEditProjectDialogOpen(false);
-      fetchProjectDetails();
+      
+      // If project name changed, navigate to the new URL to trigger refetch
+      if (editProjectData.name !== project.name) {
+        const currentTab = searchParams.get("tab");
+        const newPath = `/owner/projects/${encodeURIComponent(editProjectData.name)}${currentTab ? `?tab=${currentTab}` : ''}`;
+        navigate(newPath);
+      } else {
+        // If name didn't change, just refetch the details
+        fetchProjectDetails();
+      }
     } catch (error) {
       console.error("Error updating project:", error);
       toast({
