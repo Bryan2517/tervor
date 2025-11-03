@@ -239,9 +239,37 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
 
       if (fetchError) throw fetchError;
 
+      // Auto clock-in for newly created organization
+      const authUser = (await supabase.auth.getUser()).data.user;
+      if (!authUser) throw new Error("User not found");
+
+      const { error: clockInError } = await supabase.rpc('create_daily_checkin', {
+        p_org_id: newOrg.id,
+        p_user_id: authUser.id,
+        p_source: 'web'
+      });
+      if (clockInError) throw clockInError;
+
+      // Update last_selected flags
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: false })
+        .eq("user_id", authUser.id);
+
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: true })
+        .eq("user_id", authUser.id)
+        .eq("organization_id", newOrg.id);
+
+      // Set presence online
+      if (presenceContext?.setUserOnline) {
+        await presenceContext.setUserOnline();
+      }
+
       toast({
-        title: "Success",
-        description: "Organization created successfully!",
+        title: "Clocked In",
+        description: `Organization created and clocked in to ${newOrg.name}`,
       });
 
       // Select the new organization
@@ -291,9 +319,37 @@ export function OrganizationSelector({ onOrganizationSelect }: OrganizationSelec
 
       if (fetchError) throw fetchError;
 
+      // Auto clock-in for newly joined organization
+      const authUser = (await supabase.auth.getUser()).data.user;
+      if (!authUser) throw new Error("User not found");
+
+      const { error: clockInError } = await supabase.rpc('create_daily_checkin', {
+        p_org_id: org.id,
+        p_user_id: authUser.id,
+        p_source: 'web'
+      });
+      if (clockInError) throw clockInError;
+
+      // Update last_selected flags
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: false })
+        .eq("user_id", authUser.id);
+
+      await supabase
+        .from("organization_members")
+        .update({ last_selected: true })
+        .eq("user_id", authUser.id)
+        .eq("organization_id", org.id);
+
+      // Set presence online
+      if (presenceContext?.setUserOnline) {
+        await presenceContext.setUserOnline();
+      }
+
       toast({
-        title: "Success",
-        description: "Successfully joined organization!",
+        title: "Clocked In",
+        description: `Successfully joined and clocked in to ${org.name}`,
       });
 
       // Select the organization
