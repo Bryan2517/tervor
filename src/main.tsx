@@ -33,6 +33,7 @@ import { TeamManagement as AdminTeamManagement } from "./pages/admin/TeamManagem
 import { Shop } from "./pages/shared/Shop";
 import { TimeLoggingReport } from "./pages/shared/TimeLoggingReport";
 import { AttendanceHistory } from "./pages/shared/AttendanceHistory";
+import { MyRewards } from "./pages/shared/MyRewards";
 import SupervisorManageTeam from "./pages/supervisor/ManageTeam";
 import SupervisorProjects from "./pages/supervisor/Projects";
 import { ProjectDetail as SupervisorProjectDetail } from "./pages/supervisor/ProjectDetail";
@@ -50,6 +51,8 @@ import { Settings as EmployeeSettings } from "./pages/employee/Settings";
 import EmployeeProjects from "./pages/employee/Projects";
 import { ProjectDetail as EmployeeProjectDetail } from "./pages/employee/ProjectDetail";
 import EmployeeExtensionRequests from "./pages/employee/ExtensionRequests";
+import EmployeeTimeManagement from "./pages/employee/TimeManagement";
+import EmployeeTeams from "./pages/employee/Teams";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { OrganizationProvider } from "./contexts/OrganizationContext";
 
@@ -223,6 +226,10 @@ const router = createBrowserRouter([
         element: <SupervisorManageTeam />,
       },
       {
+        path: "supervisor/tasks/new",
+        element: <CreateTask />,
+      },
+      {
         path: "supervisor/task-assignment",
         element: <SupervisorTaskAssignment />,
       },
@@ -267,6 +274,10 @@ const router = createBrowserRouter([
         element: <SupervisorExtensionRequests />,
       },
       {
+        path: "supervisor/my-rewards",
+        element: <MyRewards />,
+      },
+      {
         path: "employee/settings",
         element: <EmployeeSettings />,
       },
@@ -275,8 +286,20 @@ const router = createBrowserRouter([
         element: <AttendanceHistory />,
       },
       {
+        path: "employee/time-management",
+        element: <EmployeeTimeManagement />,
+      },
+      {
+        path: "employee/teams",
+        element: <EmployeeTeams />,
+      },
+      {
         path: "employee/extension-requests",
         element: <EmployeeExtensionRequests />,
+      },
+      {
+        path: "employee/my-rewards",
+        element: <MyRewards />,
       },
     ],
   },

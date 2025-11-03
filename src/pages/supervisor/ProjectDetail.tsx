@@ -140,52 +140,15 @@ export function ProjectDetail() {
     if (!organization) return;
     
     try {
-      // Get current user (supervisor)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      // Find the team where this supervisor is the lead
-      // @ts-ignore - teams table will be available after migration
-      const { data: supervisorTeam } = await (supabase as any)
-        .from("teams")
-        .select("id")
+      // Fetch all employees in the organization
+      const { data: employeesData, error: employeesError } = await supabase
+        .from("organization_members")
+        .select("user_id, users!inner(full_name)")
         .eq("organization_id", organization.id)
-        .eq("supervisor_id", user.id)
-        .single();
+        .eq("role", "employee");
 
-      if (!supervisorTeam) {
-        // Supervisor doesn't have a team yet, show no employees
-        setEmployees([]);
-        return;
-      }
-
-      // Get employees who are members of this supervisor's team
-      // @ts-ignore - team_members table will be available after migration
-      const { data: teamMembersData } = await (supabase as any)
-        .from("team_members")
-        .select(`
-          user_id,
-          users!inner(full_name)
-        `)
-        .eq("team_id", supervisorTeam.id);
-
-      // Filter to only include employees (not supervisors)
-      if (teamMembersData) {
-        const { data: orgMembers } = await supabase
-          .from("organization_members")
-          .select("user_id, role")
-          .eq("organization_id", organization.id)
-          .eq("role", "employee")
-          .in("user_id", teamMembersData.map(m => m.user_id));
-
-        if (orgMembers) {
-          const employeeIds = orgMembers.map(m => m.user_id);
-          const filteredEmployees = teamMembersData.filter(tm => 
-            employeeIds.includes(tm.user_id)
-          );
-          setEmployees(filteredEmployees as any);
-        }
-      }
+      if (employeesError) throw employeesError;
+      setEmployees(employeesData as any || []);
     } catch (error) {
       console.error("Error fetching team members:", error);
       toast({

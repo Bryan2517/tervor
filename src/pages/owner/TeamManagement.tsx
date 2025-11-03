@@ -310,40 +310,40 @@ export function TeamManagement() {
                       </Select>
                       
                       {member.user_id !== currentUserId && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            disabled={removingUserId === member.user_id}
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
+                              <br /><br />
+                              This action cannot be undone. They will lose access to all projects and data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel disabled={removingUserId === member.user_id}>
+                              Cancel
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => handleRemoveMember(member.user_id)}
                               disabled={removingUserId === member.user_id}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                             >
-                              <UserMinus className="w-4 h-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Remove Team Member?</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to remove <strong>{member.user.full_name}</strong> ({member.user.email}) from the organization?
-                                <br /><br />
-                                This action cannot be undone. They will lose access to all projects and data.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel disabled={removingUserId === member.user_id}>
-                                Cancel
-                              </AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleRemoveMember(member.user_id)}
-                                disabled={removingUserId === member.user_id}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                              >
-                                {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                              {removingUserId === member.user_id ? "Removing..." : "Remove Member"}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       )}
                     </>
                   </div>

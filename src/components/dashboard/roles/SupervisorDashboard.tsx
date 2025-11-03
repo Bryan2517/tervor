@@ -2,12 +2,14 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/enhanced-card";
 import { Button } from "@/components/ui/enhanced-button";
+import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ModeToggle } from "@/components/mode-toggle";
 import { OnlinePresence } from "../shared/OnlinePresence";
 import { ClockOutButton } from "../shared/ClockOutButton";
 import { NotificationBell } from "../shared/NotificationBell";
 import { Link } from "react-router-dom";
+import { cn } from "@/lib/utils";
 import { 
   Eye, 
   Users, 
@@ -20,11 +22,21 @@ import {
   Gift,
   Coins,
   LogOut,
-  Settings,
-  FolderOpen
+  FolderOpen,
+  Plus,
+  CalendarClock,
+  Play,
+  Pause,
+  MessageSquare,
+  Paperclip,
+  Award
 } from "lucide-react";
+import { format } from "date-fns";
+import { Tables } from "@/integrations/supabase/types";
+import { useToast } from "@/hooks/use-toast";
 
 type UserRole = "owner" | "admin" | "supervisor" | "employee";
+type TaskStatus = "todo" | "in_progress" | "blocked" | "done";
 
 interface Organization {
   id: string;
@@ -39,20 +51,50 @@ interface SupervisorDashboardProps {
   onClockOut: () => void;
 }
 
+interface Task extends Tables<"tasks"> {
+  project: {
+    name: string;
+    organization_id: string;
+  };
+  phase?: {
+    name: string;
+  };
+}
+
+const statusColors = {
+  todo: "bg-muted",
+  in_progress: "bg-primary",
+  blocked: "bg-destructive",
+  done: "bg-success",
+};
+
+const priorityColors = {
+  low: "border-l-priority-low",
+  medium: "border-l-priority-medium", 
+  high: "border-l-priority-high",
+  urgent: "border-l-priority-urgent",
+};
+
 interface SupervisorStats {
-  directReports: number;
-  tasksOverseeing: number;
-  completedToday: number;
+  isClockedIn: boolean;
+  totalProjects: number;
+  extensionRequests: number;
+  totalTeams: number;
+  ongoingAssignments: number;
   teamEfficiency: number;
   totalPoints: number;
 }
 
 export function SupervisorDashboard({ organization, onLogout, onClockOut }: SupervisorDashboardProps) {
+  const { toast } = useToast();
   const [userId, setUserId] = useState<string>("");
+  const [assignments, setAssignments] = useState<Task[]>([]);
   const [stats, setStats] = useState<SupervisorStats>({
-    directReports: 0,
-    tasksOverseeing: 0,
-    completedToday: 0,
+    isClockedIn: false,
+    totalProjects: 0,
+    extensionRequests: 0,
+    totalTeams: 0,
+    ongoingAssignments: 0,
     teamEfficiency: 0,
     totalPoints: 0,
   });
@@ -65,7 +107,169 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
     };
     getUserId();
     fetchSupervisorStats();
+    fetchAssignments();
   }, [organization.id]);
+
+  const fetchAssignments = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from("tasks")
+        .select(`
+          *,
+          project:projects!inner(name, organization_id),
+          phase:phases(name)
+        `)
+        .eq("assignee_id", user.id)
+        .eq("project.organization_id", organization.id)
+        .eq("task_type", "assignment")
+        .neq("status", "done")
+        .order("priority", { ascending: false })
+        .order("due_date", { ascending: true });
+
+      if (error) throw error;
+      setAssignments(data || []);
+    } catch (error) {
+      console.error("Error fetching assignments:", error);
+    }
+  };
+
+  const handleTaskAction = async (taskId: string, action: "start" | "pause" | "complete") => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      let newStatus: TaskStatus;
+      switch (action) {
+        case "start":
+          newStatus = "in_progress";
+          break;
+        case "pause":
+          newStatus = "todo";
+          break;
+        case "complete":
+          newStatus = "done";
+          break;
+      }
+
+      // If completing an assignment, award points
+      if (action === "complete") {
+        // Get the assignment details to check for completion points
+        const { data: taskData, error: taskError } = await supabase
+          .from("tasks")
+          .select("completion_points")
+          .eq("id", taskId)
+          .single();
+
+        if (taskError) throw taskError;
+
+        // Update task status
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+
+        // Award points if the assignment has completion points
+        if (taskData.completion_points && taskData.completion_points > 0) {
+          const { error: pointsError } = await supabase
+            .from("points_ledger")
+            .insert({
+              user_id: user.id,
+              delta: taskData.completion_points,
+              reason_code: "assignment_completion",
+              task_id: taskId,
+            });
+
+          if (pointsError) throw pointsError;
+
+          // Show success notification with points earned
+          toast({
+            title: "Assignment Completed! 🎉",
+            description: `You earned ${taskData.completion_points} points!`,
+          });
+        } else {
+          // Show completion message without points
+          toast({
+            title: "Assignment Completed!",
+            description: "Great job completing this assignment!",
+          });
+        }
+      } else {
+        // For start and pause, just update the status
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update({ 
+            status: newStatus,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", taskId);
+
+        if (updateError) throw updateError;
+      }
+
+      // Create time log entry
+      if (action === "start" || action === "pause" || action === "complete") {
+        await supabase
+          .from("time_logs")
+          .insert({
+            task_id: taskId,
+            user_id: user.id,
+            action: action === "complete" ? "complete" : action,
+          });
+      }
+
+      await fetchAssignments();
+      await fetchSupervisorStats();
+    } catch (error) {
+      console.error("Error updating task:", error);
+    }
+  };
+
+  const getActionButton = (task: Task) => {
+    switch (task.status) {
+      case "todo":
+        return (
+          <Button
+            variant="start"
+            size="sm"
+            onClick={() => handleTaskAction(task.id, "start")}
+          >
+            <Play className="w-3 h-3" />
+            Start
+          </Button>
+        );
+      case "in_progress":
+        return (
+          <div className="flex gap-2">
+            <Button
+              variant="pause"
+              size="sm"
+              onClick={() => handleTaskAction(task.id, "pause")}
+            >
+              <Pause className="w-3 h-3" />
+              Pause
+            </Button>
+            <Button
+              variant="complete"
+              size="sm"
+              onClick={() => handleTaskAction(task.id, "complete")}
+            >
+              <CheckCircle2 className="w-3 h-3" />
+              Complete
+            </Button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
 
   const fetchSupervisorStats = async () => {
     try {
@@ -73,64 +277,60 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Find the team where this supervisor is the lead
-      // @ts-ignore - teams table will be available after migration
-      const { data: supervisorTeam } = await (supabase as any)
-        .from("teams")
-        .select("id")
-        .eq("organization_id", organization.id)
-        .eq("supervisor_id", user.id)
-        .maybeSingle();
-
-      let directReports = 0;
-      
-      if (supervisorTeam) {
-        // Get employees who are members of this supervisor's team
-        // @ts-ignore - team_members table will be available after migration
-        const { data: teamMembersData } = await (supabase as any)
-          .from("team_members")
-          .select("user_id")
-          .eq("team_id", supervisorTeam.id);
-
-        if (teamMembersData) {
-          // Filter to only count employees (not supervisors)
-          const { data: orgMembers } = await supabase
-            .from("organization_members")
-            .select("user_id")
-            .eq("organization_id", organization.id)
-            .eq("role", "employee")
-            .in("user_id", teamMembersData.map(m => m.user_id));
-
-          directReports = orgMembers?.length || 0;
-        }
-      }
-
       // Fetch supervisor-specific statistics
-      const [tasksData, completedTasksData, pointsData] = await Promise.all([
-        supabase
-          .from('tasks')
-          .select('status, created_at, project:projects!inner(organization_id)')
-          .eq('project.organization_id', organization.id),
-        supabase
-          .from('tasks')
-          .select('status, priority, project:projects!inner(organization_id)')
-          .eq('project.organization_id', organization.id)
-          .eq('status', 'done'),
+      const [pointsData, projectsData, extensionRequestsData, currentClockInData, teamsData, tasksData, completedTasksData, ongoingAssignmentsData] = await Promise.all([
         // Fetch actual points from points_ledger
         supabase
           .from('points_ledger')
           .select('delta')
+          .eq('user_id', user.id),
+        supabase
+          .from('projects')
+          .select('id')
+          .eq('organization_id', organization.id),
+        // Fetch extension requests for the current user
+        supabase
+          .from('extension_requests')
+          .select('id')
+          .eq('requester_id', user.id),
+        // Check if user is currently clocked in
+        supabase
+          .from('attendance_checkins')
+          .select('id, clock_out_at, local_date')
           .eq('user_id', user.id)
+          .eq('local_date', new Date().toISOString().split('T')[0])
+          .is('clock_out_at', null)
+          .maybeSingle(),
+        // Fetch teams where this supervisor is the supervisor_id
+        (supabase as any)
+          .from('teams')
+          .select('id')
+          .eq('organization_id', organization.id)
+          .eq('supervisor_id', user.id),
+        supabase
+          .from('tasks')
+          .select('status, project:projects!inner(organization_id)')
+          .eq('project.organization_id', organization.id),
+        supabase
+          .from('tasks')
+          .select('status, project:projects!inner(organization_id)')
+          .eq('project.organization_id', organization.id)
+          .eq('status', 'done'),
+        // Fetch ongoing assignments for the supervisor
+        supabase
+          .from('tasks')
+          .select('id, project:projects!inner(organization_id)')
+          .eq('project.organization_id', organization.id)
+          .eq('task_type', 'assignment')
+          .eq('assignee_id', user.id)
+          .neq('status', 'done')
       ]);
 
-      const tasksOverseeing = tasksData.data?.length || 0;
-      
-      // Calculate tasks completed today
-      const today = new Date().toDateString();
-      const completedToday = tasksData.data?.filter(task => 
-        task.status === 'done' && 
-        new Date(task.created_at).toDateString() === today
-      ).length || 0;
+      const totalProjects = projectsData.data?.length || 0;
+      const extensionRequests = extensionRequestsData.data?.length || 0;
+      const isClockedIn = !!currentClockInData.data;
+      const totalTeams = teamsData.data?.length || 0;
+      const ongoingAssignments = ongoingAssignmentsData.data?.length || 0;
 
       // Calculate total points from points_ledger (same as employee dashboard)
       const totalPoints = (pointsData.data || []).reduce((sum, transaction) => {
@@ -143,9 +343,11 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
       const teamEfficiency = totalTasks > 0 ? Math.round((completedTasks.length / totalTasks) * 100) : 0;
 
       setStats({
-        directReports,
-        tasksOverseeing,
-        completedToday,
+        isClockedIn,
+        totalProjects,
+        extensionRequests,
+        totalTeams,
+        ongoingAssignments,
         teamEfficiency,
         totalPoints,
       });
@@ -208,73 +410,71 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
       <div className="container mx-auto px-4 py-6">
         {/* Supervisor Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Link to="/supervisor/direct-reports" className="group">
+          <Link to="/supervisor/time-management" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Direct Reports</p>
-                  <p className="text-2xl font-bold">{stats.directReports}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Current Status</p>
+                  <p className={`text-2xl font-bold ${stats.isClockedIn ? 'text-green-600' : 'text-muted-foreground'}`}>
+                    {stats.isClockedIn ? 'Clocked In' : 'Clocked Out'}
+                  </p>
                 </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Users className="w-6 h-6 text-primary" />
+                <div className={`w-12 h-12 ${stats.isClockedIn ? 'bg-green-500/10' : 'bg-muted/50'} rounded-lg flex items-center justify-center`}>
+                  <Clock className={`w-6 h-6 ${stats.isClockedIn ? 'text-green-600' : 'text-muted-foreground'}`} />
                 </div>
               </div>
             </CardContent>
           </Card>
           </Link>
 
-          <Link to="/supervisor/task-assignment" className="group">
+          <Link to="/supervisor/projects" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tasks Overseeing</p>
-                  <p className="text-2xl font-bold">{stats.tasksOverseeing}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Projects</p>
+                  <p className="text-2xl font-bold">{stats.totalProjects}</p>
                 </div>
                 <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <Target className="w-6 h-6 text-warning" />
+                  <FolderOpen className="w-6 h-6 text-warning" />
                 </div>
               </div>
             </CardContent>
           </Card>
           </Link>
 
-          <Link to="/supervisor/complete-today" className="group">
+          <Link to="/supervisor/extension-requests" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Completed Today</p>
-                  <p className="text-2xl font-bold">{stats.completedToday}</p>
+                  <p className="text-sm font-medium text-muted-foreground">Extension Requests</p>
+                  <p className="text-2xl font-bold">{stats.extensionRequests}</p>
                 </div>
-                <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-                  <CheckCircle2 className="w-6 h-6 text-success" />
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <CalendarClock className="w-6 h-6 text-primary" />
                 </div>
               </div>
             </CardContent>
           </Card>
           </Link>
 
+          <Link to="/supervisor/teams" className="group">
           <Card variant="interactive">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-muted-foreground">Team Efficiency</p>
-                  <div className="flex items-center gap-3">
-                    <p className="text-2xl font-bold">{stats.teamEfficiency}%</p>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Coins className="w-4 h-4" />
-                      <span>{stats.totalPoints}</span>
-                    </div>
-                  </div>
+                  <p className="text-sm font-medium text-muted-foreground">Teams</p>
+                  <p className="text-2xl font-bold">{stats.totalTeams}</p>
                 </div>
                 <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-accent" />
+                  <Users className="w-6 h-6 text-accent" />
                 </div>
               </div>
             </CardContent>
           </Card>
+          </Link>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -292,7 +492,7 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/projects">
                       <FolderOpen className="w-6 h-6" />
@@ -306,27 +506,15 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/task-assignment">
-                      <Target className="w-6 h-6" />
-                      <span>Task Assignment</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/progress-tracking">
-                      <TrendingUp className="w-6 h-6" />
-                      <span>Progress Tracking</span>
+                    <Link to="/supervisor/tasks/new">
+                      <Plus className="w-6 h-6" />
+                      <span>Create Task</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
                     <Link to="/supervisor/time-management">
                       <Clock className="w-6 h-6" />
-                      <span>Time Management</span>
-                    </Link>
-                  </Button>
-                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/quality-review">
-                      <CheckCircle2 className="w-6 h-6" />
-                      <span>Quality Review</span>
+                      <span>Logging History</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
@@ -336,40 +524,99 @@ export function SupervisorDashboard({ organization, onLogout, onClockOut }: Supe
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/supervisor/settings">
-                      <Settings className="w-6 h-6" />
-                      <span>Settings</span>
+                    <Link to="/supervisor/extension-requests">
+                      <CalendarClock className="w-6 h-6" />
+                      <span>Extension Requests</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/supervisor/my-rewards">
+                      <Award className="w-6 h-6" />
+                      <span>My Rewards</span>
                     </Link>
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Team Performance */}
+            {/* My Ongoing Assignments */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5" />
-                  Team Performance Metrics
+                  <Target className="w-5 h-5" />
+                  My Ongoing Assignments
                 </CardTitle>
+                <CardDescription>
+                  {assignments.length} active assignment{assignments.length !== 1 ? 's' : ''}
+                </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">Average Task Completion</span>
-                    <span className="text-sm font-bold text-success">4.2 tasks/day</span>
+              <CardContent className="space-y-4">
+                {assignments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No active assignments</p>
+                    <p className="text-sm">Great job staying on top of everything!</p>
                   </div>
-                  
-                  <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">Quality Score</span>
-                    <span className="text-sm font-bold text-success">92%</span>
-                  </div>
-                  
-                  <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                    <span className="text-sm font-medium">On-time Delivery</span>
-                    <span className="text-sm font-bold">{stats.teamEfficiency}%</span>
-                  </div>
-                </div>
+                ) : (
+                  assignments.map((assignment) => (
+                    <Card
+                      key={assignment.id}
+                      variant="interactive"
+                      className={cn("border-l-4", priorityColors[assignment.priority])}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-medium">{assignment.title}</h4>
+                              <Badge 
+                                variant="outline" 
+                                className={cn("text-xs", statusColors[assignment.status])}
+                              >
+                                {assignment.status.replace("_", " ")}
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+                              <span className="flex items-center gap-1">
+                                <span className="w-2 h-2 bg-primary rounded-full"></span>
+                                {assignment.project.name}
+                              </span>
+                              {assignment.phase && (
+                                <span>• {assignment.phase.name}</span>
+                              )}
+                              {assignment.due_date && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3 h-3" />
+                                  {format(new Date(assignment.due_date), "MMM d")}
+                                </span>
+                              )}
+                            </div>
+
+                            {assignment.description && (
+                              <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
+                                {assignment.description}
+                              </p>
+                            )}
+
+                            <div className="flex items-center gap-2">
+                              <Button variant="ghost" size="sm">
+                                <MessageSquare className="w-3 h-3" />
+                              </Button>
+                              <Button variant="ghost" size="sm">
+                                <Paperclip className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          <div className="flex flex-col gap-2">
+                            {getActionButton(assignment)}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
               </CardContent>
             </Card>
 

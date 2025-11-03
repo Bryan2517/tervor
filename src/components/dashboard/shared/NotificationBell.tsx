@@ -19,6 +19,7 @@ import {
   UserPlus,
   AlertTriangle,
   Coins,
+  Users,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -47,6 +48,11 @@ interface Notification {
     reason_code?: string;
     project_id?: string;
     project_name?: string;
+    new_member_id?: string;
+    new_member_name?: string;
+    member_role?: string;
+    organization_id?: string;
+    organization_name?: string;
     message: string;
   };
   read_at: string | null;
@@ -191,6 +197,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         return <AlertTriangle className="w-5 h-5 text-orange-600" />;
       case "points_earned":
         return <Coins className="w-5 h-5 text-yellow-600" />;
+      case "member_joined":
+        return <Users className="w-5 h-5 text-purple-600" />;
       default:
         return <Bell className="w-5 h-5 text-muted-foreground" />;
     }
@@ -210,6 +218,8 @@ export function NotificationBell({ userId }: NotificationBellProps) {
         return "bg-orange-50 border-orange-200";
       case "points_earned":
         return "bg-yellow-50 border-yellow-200";
+      case "member_joined":
+        return "bg-purple-50 border-purple-200";
       default:
         return "bg-muted/50 border-muted";
     }
@@ -290,6 +300,16 @@ export function NotificationBell({ userId }: NotificationBellProps) {
     // For points earned notifications, navigate to shop
     if (n.type === "points_earned") {
       navigate(`/${role}/shop`);
+      return;
+    }
+
+    // For member joined notifications, navigate to team management
+    if (n.type === "member_joined") {
+      if (role === "owner") {
+        navigate("/owner/team");
+      } else if (role === "admin") {
+        navigate("/admin/manage-team");
+      }
       return;
     }
   };

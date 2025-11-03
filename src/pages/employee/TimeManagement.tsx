@@ -26,7 +26,7 @@ interface WorkHoursConfig {
   late_threshold_minutes: number;
 }
 
-export default function SupervisorTimeManagement() {
+export default function EmployeeTimeManagement() {
   const navigate = useNavigate();
   const { organization } = useOrganization();
   const [clockInRecords, setClockInRecords] = useState<ClockInRecord[]>([]);
@@ -442,3 +442,4 @@ export default function SupervisorTimeManagement() {
     </div>
   );
 }
+

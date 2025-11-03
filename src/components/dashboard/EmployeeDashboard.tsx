@@ -87,12 +87,13 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
   const [userId, setUserId] = useState<string>("");
   const [stats, setStats] = useState({
     ongoing: 0,
-    dueToday: 0,
+    totalProjects: 0,
     overdue: 0,
     completed: 0,
     points: 850,
     rank: 3,
-    streak: 5,
+    totalTeams: 0,
+    isClockedIn: false,
   });
   const [loading, setLoading] = useState(true);
 
@@ -137,36 +138,106 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
 
       // Calculate task statistics
       const ongoing = tasks.filter(t => t.status === "in_progress").length;
-      const dueToday = tasks.filter(t => {
-        if (!t.due_date) return false;
-        const today = new Date().toDateString();
-        return new Date(t.due_date).toDateString() === today;
-      }).length;
       const overdue = tasks.filter(t => {
         if (!t.due_date) return false;
         return new Date(t.due_date) < new Date() && t.status !== "done";
       }).length;
 
-      // Fetch actual points from points_ledger
-      const { data: pointsData, error: pointsError } = await supabase
-        .from("points_ledger")
-        .select("delta")
+      // Fetch projects count from the organization
+      const { data: projectsData, error: projectsError } = await supabase
+        .from("projects")
+        .select("id")
+        .eq("organization_id", organization.id);
+
+      if (projectsError) throw projectsError;
+
+      const totalProjects = projectsData?.length || 0;
+
+      // Check if user is currently clocked in
+      const { data: clockInData } = await supabase
+        .from('attendance_checkins')
+        .select('id, clock_out_at, local_date')
+        .eq('user_id', user.id)
+        .eq('local_date', new Date().toISOString().split('T')[0])
+        .is('clock_out_at', null)
+        .maybeSingle();
+
+      const isClockedIn = !!clockInData;
+
+      // Fetch teams count for the employee within this organization
+      // @ts-ignore - team_members table will be available after migration
+      const { data: teamMembersData, error: teamMembersError } = await (supabase as any)
+        .from("team_members")
+        .select("team_id")
         .eq("user_id", user.id);
 
-      if (pointsError) throw pointsError;
+      if (teamMembersError) {
+        console.error("Error fetching team members:", teamMembersError);
+      }
 
-      // Calculate total points (sum of all deltas - positive for earn, negative for spend)
-      const totalPoints = (pointsData || []).reduce((sum, transaction) => {
-        return sum + transaction.delta;
-      }, 0);
+      if (teamMembersData && teamMembersData.length > 0) {
+        const teamIds = teamMembersData.map((tm: any) => tm.team_id);
+        
+        // Fetch teams and filter by organization
+        // @ts-ignore - teams table will be available after migration
+        const { data: teamsData, error: teamsError } = await (supabase as any)
+          .from("teams")
+          .select("id")
+          .eq("organization_id", organization.id)
+          .in("id", teamIds);
 
-      setStats(prev => ({
-        ...prev,
-        ongoing,
-        dueToday,
-        overdue,
-        points: totalPoints,
-      }));
+        if (teamsError) {
+          console.error("Error fetching teams:", teamsError);
+        }
+
+        const totalTeams = teamsData?.length || 0;
+        
+        // Fetch actual points from points_ledger
+        const { data: pointsData, error: pointsError } = await supabase
+          .from("points_ledger")
+          .select("delta")
+          .eq("user_id", user.id);
+
+        if (pointsError) throw pointsError;
+
+        // Calculate total points (sum of all deltas - positive for earn, negative for spend)
+        const totalPoints = (pointsData || []).reduce((sum, transaction) => {
+          return sum + transaction.delta;
+        }, 0);
+
+        setStats(prev => ({
+          ...prev,
+          ongoing,
+          totalProjects,
+          overdue,
+          points: totalPoints,
+          isClockedIn,
+          totalTeams,
+        }));
+      } else {
+        // No team memberships, continue with points fetch
+        const { data: pointsData, error: pointsError } = await supabase
+          .from("points_ledger")
+          .select("delta")
+          .eq("user_id", user.id);
+
+        if (pointsError) throw pointsError;
+
+        // Calculate total points (sum of all deltas - positive for earn, negative for spend)
+        const totalPoints = (pointsData || []).reduce((sum, transaction) => {
+          return sum + transaction.delta;
+        }, 0);
+
+        setStats(prev => ({
+          ...prev,
+          ongoing,
+          totalProjects,
+          overdue,
+          points: totalPoints,
+          isClockedIn,
+          totalTeams: 0,
+        }));
+      }
     } catch (error) {
       console.error("Error fetching stats:", error);
     } finally {
@@ -345,9 +416,6 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                   <span className="font-semibold">{stats.points}</span>
                 </Card>
               </Link>
-              <Button variant="outline" asChild>
-                <Link to="/employee/settings"><Settings/>Settings</Link>
-              </Button>
               <ClockOutButton 
                 organizationId={organization.id}
                 organizationName={organization.name}
@@ -361,47 +429,55 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
       <div className="container mx-auto px-4 py-6">
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Tasks in Progress</p>
-                  <p className="text-2xl font-bold">{stats.ongoing}</p>
+          <Link to="/employee/time-management" className="group">
+            <Card variant="interactive">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Current Status</p>
+                    <p className={`text-2xl font-bold ${stats.isClockedIn ? 'text-green-600' : 'text-muted-foreground'}`}>
+                      {stats.isClockedIn ? 'Clocked In' : 'Clocked Out'}
+                    </p>
+                  </div>
+                  <div className={`w-12 h-12 ${stats.isClockedIn ? 'bg-green-500/10' : 'bg-muted/50'} rounded-lg flex items-center justify-center`}>
+                    <Clock className={`w-6 h-6 ${stats.isClockedIn ? 'text-green-600' : 'text-muted-foreground'}`} />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                  <Target className="w-6 h-6 text-primary" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Due Today</p>
-                  <p className="text-2xl font-bold">{stats.dueToday}</p>
+          <Link to="/employee/projects" className="group">
+            <Card variant="interactive">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Projects</p>
+                    <p className="text-2xl font-bold">{stats.totalProjects}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
+                    <FolderOpen className="w-6 h-6 text-warning" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <Calendar className="w-6 h-6 text-warning" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Streak</p>
-                  <p className="text-2xl font-bold">{stats.streak} days</p>
+          <Link to="/employee/teams" className="group">
+            <Card variant="interactive">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Teams</p>
+                    <p className="text-2xl font-bold">{stats.totalTeams}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
+                    <Users className="w-6 h-6 text-accent" />
+                  </div>
                 </div>
-                <div className="w-12 h-12 bg-streak/10 rounded-lg flex items-center justify-center">
-                  <Zap className="w-6 h-6 text-streak" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </Link>
 
           <Card variant="interactive">
             <CardContent className="p-6">
@@ -447,9 +523,21 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
-                    <Link to="/employee/settings">
-                      <Settings className="w-6 h-6" />
-                      <span>Settings</span>
+                    <Link to="/employee/time-management">
+                      <Clock className="w-6 h-6" />
+                      <span>Logging History</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/my-rewards">
+                      <Trophy className="w-6 h-6" />
+                      <span>My Rewards</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/teams">
+                      <Users className="w-6 h-6" />
+                      <span>Teams</span>
                     </Link>
                   </Button>
                 </div>
@@ -546,38 +634,6 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
           {/* Sidebar */}
           <div className="space-y-6">
             <OnlinePresence organizationId={organization.id} />
-
-            {/* Points & Rewards */}
-            <Card variant="points">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Star className="w-5 h-5" />
-                  Rewards & Points
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="text-center">
-                  <p className="text-3xl font-bold">{stats.points}</p>
-                  <p className="text-sm opacity-90">Current Points</p>
-                </div>
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Recent: Task Completion</span>
-                    <span className="text-success">+15</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Recent: On-time Delivery</span>
-                    <span className="text-success">+10</span>
-                  </div>
-                </div>
-
-                <Button variant="accent" className="w-full">
-                  <ArrowRight className="w-4 h-4" />
-                  Visit Shop
-                </Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </div>

@@ -132,7 +132,7 @@ export default function SupervisorTeams() {
 
           setTeams(teamsWithCreator);
         } else {
-          setTeams(teamsData || []);
+      setTeams(teamsData || []);
         }
       } else {
         setTeams([]);
@@ -248,7 +248,7 @@ export default function SupervisorTeams() {
           title: "Error",
           description: "Failed to update team - no changes were made",
           variant: "destructive",
-        });
+      });
         return;
       }
 
@@ -454,9 +454,9 @@ export default function SupervisorTeams() {
                   <CardContent>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <Badge variant="outline">
-                          {teamMemberCounts[team.id] || 0} members
-                        </Badge>
+                      <Badge variant="outline">
+                        {teamMemberCounts[team.id] || 0} members
+                      </Badge>
                         {team.created_by_user && (
                           <div className="text-sm text-muted-foreground">
                             Created by: <span className="font-medium">{team.created_by_user.full_name || team.created_by_user.email}</span>

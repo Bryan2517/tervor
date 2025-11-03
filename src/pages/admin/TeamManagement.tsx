@@ -126,7 +126,7 @@ export function TeamManagement() {
         const supervisorIds = teamsData
           .filter((team: any) => team.supervisor_id)
           .map((team: any) => team.supervisor_id);
-        
+
         const createdByIds = teamsData
           .filter((team: any) => team.created_by)
           .map((team: any) => team.created_by);
@@ -528,17 +528,17 @@ export function TeamManagement() {
                         >
                           <Edit2 className="w-4 h-4 text-primary" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setTeamToDelete(team.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                        >
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTeamToDelete(team.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
                       </div>
                     </div>
                   </CardHeader>

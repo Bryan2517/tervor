@@ -732,6 +732,7 @@ export type Database = {
           points_spent: number
           reward_id: string | null
           status: Database["public"]["Enums"]["redemption_status"]
+          used_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -743,6 +744,7 @@ export type Database = {
           points_spent: number
           reward_id?: string | null
           status?: Database["public"]["Enums"]["redemption_status"]
+          used_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -754,6 +756,7 @@ export type Database = {
           points_spent?: number
           reward_id?: string | null
           status?: Database["public"]["Enums"]["redemption_status"]
+          used_at?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -1235,6 +1238,7 @@ export type Database = {
         | "reward_redeemed"
         | "reward_fulfilled"
         | "announcement"
+        | "member_joined"
       redemption_status: "pending" | "confirmed" | "fulfilled" | "cancelled"
       request_status: "pending" | "approved" | "rejected"
       task_priority: "low" | "medium" | "high" | "urgent"
@@ -1382,6 +1386,7 @@ export const Constants = {
         "reward_redeemed",
         "reward_fulfilled",
         "announcement",
+        "member_joined",
       ],
       redemption_status: ["pending", "confirmed", "fulfilled", "cancelled"],
       request_status: ["pending", "approved", "rejected"],

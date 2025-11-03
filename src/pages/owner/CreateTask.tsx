@@ -53,6 +53,10 @@ export default function CreateTask() {
 
     setLoadingData(true);
     try {
+      // Get current user to check their role
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       // Fetch projects
       const { data: projectsData, error: projectsError } = await supabase
         .from("projects")
@@ -63,7 +67,7 @@ export default function CreateTask() {
       if (projectsError) throw projectsError;
       setProjects(projectsData || []);
 
-      // Fetch employees
+      // Fetch all employees
       const { data: employeesData, error: employeesError } = await supabase
         .from("organization_members")
         .select("user_id, users!inner(full_name, email)")
