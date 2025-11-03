@@ -111,7 +111,7 @@ export default function ExtensionRequests() {
           task:tasks!extension_requests_task_id_fkey(title, description, due_date, task_type, priority)
         `)
         .eq("requester_id", user.id)
-        .eq("status", activeTab)
+        .eq("status", activeTab as 'pending' | 'approved' | 'rejected')
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -466,16 +466,22 @@ export default function ExtensionRequests() {
                   <SelectValue placeholder="Select a task" />
                 </SelectTrigger>
                 <SelectContent>
-                  {tasks.map((task) => (
-                    <SelectItem key={task.id} value={task.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{task.title}</span>
-                        <span className="text-xs text-muted-foreground">
-                          Due: {task.due_date ? format(new Date(task.due_date), "MMM dd, yyyy") : 'N/A'}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {tasks.length === 0 ? (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      All tasks are done, Great Job! 🎉
+                    </div>
+                  ) : (
+                    tasks.map((task) => (
+                      <SelectItem key={task.id} value={task.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{task.title}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Due: {task.due_date ? format(new Date(task.due_date), "MMM dd, yyyy") : 'N/A'}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

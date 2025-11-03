@@ -111,7 +111,7 @@ export default function ExtensionRequests() {
           task:tasks!extension_requests_task_id_fkey(title, description, due_date, task_type, priority)
         `)
         .eq("requester_id", user.id)
-        .eq("status", activeTab)
+        .eq("status", activeTab as 'pending' | 'approved' | 'rejected')
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -466,16 +466,22 @@ export default function ExtensionRequests() {
                   <SelectValue placeholder="Select an assignment" />
                 </SelectTrigger>
                 <SelectContent>
-                  {assignments.map((assignment) => (
-                    <SelectItem key={assignment.id} value={assignment.id}>
-                      <div className="flex flex-col">
-                        <span className="font-medium">{assignment.title}</span>
-                        <span className="text-xs text-muted-foreground">
-                          Due: {assignment.due_date ? format(new Date(assignment.due_date), "MMM dd, yyyy") : 'N/A'}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
+                  {assignments.length === 0 ? (
+                    <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                      All assignments are done, Great Job! 🎉
+                    </div>
+                  ) : (
+                    assignments.map((assignment) => (
+                      <SelectItem key={assignment.id} value={assignment.id}>
+                        <div className="flex flex-col">
+                          <span className="font-medium">{assignment.title}</span>
+                          <span className="text-xs text-muted-foreground">
+                            Due: {assignment.due_date ? format(new Date(assignment.due_date), "MMM dd, yyyy") : 'N/A'}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

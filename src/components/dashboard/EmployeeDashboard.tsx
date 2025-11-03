@@ -34,7 +34,8 @@ import {
   User,
   Gift,
   Wrench,
-  FolderOpen
+  FolderOpen,
+  CalendarClock
 } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
 import { format } from "date-fns";
@@ -94,6 +95,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
     rank: 3,
     totalTeams: 0,
     isClockedIn: false,
+    extensionRequests: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -164,6 +166,19 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
 
       const isClockedIn = !!clockInData;
 
+      // Fetch extension requests count
+      const { data: extensionRequestsData, error: extensionRequestsError } = await supabase
+        .from("extension_requests")
+        .select("id", { count: "exact" })
+        .eq("requester_id", user.id)
+        .eq("status", "pending");
+
+      if (extensionRequestsError) {
+        console.error("Error fetching extension requests:", extensionRequestsError);
+      }
+
+      const extensionRequests = extensionRequestsData?.length || 0;
+
       // Fetch teams count for the employee within this organization
       // @ts-ignore - team_members table will be available after migration
       const { data: teamMembersData, error: teamMembersError } = await (supabase as any)
@@ -213,6 +228,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
           points: totalPoints,
           isClockedIn,
           totalTeams,
+          extensionRequests,
         }));
       } else {
         // No team memberships, continue with points fetch
@@ -236,6 +252,7 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
           points: totalPoints,
           isClockedIn,
           totalTeams: 0,
+          extensionRequests,
         }));
       }
     } catch (error) {
@@ -463,6 +480,22 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
             </Card>
           </Link>
 
+          <Link to="/employee/extension-requests" className="group">
+            <Card variant="interactive">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Extension Requests</p>
+                    <p className="text-2xl font-bold">{stats.extensionRequests}</p>
+                  </div>
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <CalendarClock className="w-6 h-6 text-primary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+
           <Link to="/employee/teams" className="group">
             <Card variant="interactive">
               <CardContent className="p-6">
@@ -478,20 +511,6 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
               </CardContent>
             </Card>
           </Link>
-
-          <Card variant="interactive">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Leaderboard Rank</p>
-                  <p className="text-2xl font-bold">#{stats.rank}</p>
-                </div>
-                <div className="w-12 h-12 bg-points/10 rounded-lg flex items-center justify-center">
-                  <Trophy className="w-6 h-6 text-points" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -526,6 +545,12 @@ export function EmployeeDashboard({ organization, onLogout, onClockOut }: Employ
                     <Link to="/employee/time-management">
                       <Clock className="w-6 h-6" />
                       <span>Logging History</span>
+                    </Link>
+                  </Button>
+                  <Button variant="outline" className="h-20 flex-col gap-2" asChild>
+                    <Link to="/employee/extension-requests">
+                      <CalendarClock className="w-6 h-6" />
+                      <span>Extension Requests</span>
                     </Link>
                   </Button>
                   <Button variant="outline" className="h-20 flex-col gap-2" asChild>
